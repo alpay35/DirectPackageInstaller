@@ -135,6 +135,15 @@ namespace DirectPackageInstaller.Views
 
             ApplyLocalization();
 
+            btnBrowseNas.Click += BtnBrowseNas_Click;
+            btnScanNas.Click += BtnScanNas_Click;
+            btnQueueSelected.Click += BtnQueueSelected_Click;
+            btnInstallSelected.Click += BtnInstallSelected_Click;
+            btnQueueAll.Click += BtnQueueAll_Click;
+            btnStartQueue.Click += BtnStartQueue_Click;
+            btnStopQueue.Click += BtnStopQueue_Click;
+            btnClearQueue.Click += BtnClearQueue_Click;
+
             btnDHCPService.IsVisible = App.IsWindows;
         }
         public async Task OnShown(MainWindow? Parent)
@@ -1578,6 +1587,221 @@ namespace DirectPackageInstaller.Views
                 if (menuDebrids != null) menuDebrids.Header = "_" + LocalizationManager.Get("DebridSettings");
             }
             catch { }
+        }
+
+        private async void BtnBrowseNas_Click(object? sender, RoutedEventArgs? e)
+        {
+            try
+            {
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel != null)
+                {
+                    var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+                    {
+                        Title = "PS4 PKG Klasörünü Seçin (NAS / Yerel)",
+                        AllowMultiple = false
+                    });
+                    if (folders != null && folders.Count > 0)
+                    {
+                        string path = folders[0].Path.LocalPath;
+                        if (Model != null)
+                        {
+                            Model.NasDirectoryPath = path;
+                        }
+                        BtnScanNas_Click(null, null);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await MessageBox.ShowAsync("Klasör seçilemedi: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async void BtnScanNas_Click(object? sender, RoutedEventArgs? e)
+        {
+            var path = Model?.NasDirectoryPath;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                await MessageBox.ShowAsync("Lütfen geçerli bir NAS veya yerel klasör yolu girin.", "PKG Kütüphanesi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            await SetStatus($"Klasör taranıyor: {path}...");
+            btnScanNas.IsEnabled = false;
+
+            try
+            {
+                int count = await LibraryService.ScanDirectoryAsync(path, null, (scanned, total) =>
+                {
+                    Dispatcher.UIThread.Post(async () => await SetStatus($"Taranıyor... ({scanned}/{total})"));
+                });
+
+                await SetStatus($"Tarama tamamlandı: {count} oyun bulundu.");
+                await MessageBox.ShowAsync($"Kütüphane güncellendi!\n{count} adet PKG dosyası bulundu.", "PKG Kütüphanesi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                await MessageBox.ShowAsync($"Tarama hatası: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                await SetStatus("Tarama başarısız.");
+            }
+            finally
+            {
+                btnScanNas.IsEnabled = true;
+            }
+        }
+
+        private async void BtnQueueSelected_Click(object? sender, RoutedEventArgs e)
+        {
+            var selected = LibraryService.AllGames.Where(x => x.IsSelected).ToList();
+            if (selected.Count == 0)
+            {
+                await MessageBox.ShowAsync("Lütfen kütüphaneden en az bir oyun seçin (kutucukları işaretleyin).", "Kuyruğa Ekle", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            foreach (var game in selected)
+            {
+                InstallQueueManager.Add(game.FilePath, game.Title, game.FormattedSize, game.IconData);
+                game.IsSelected = false;
+            }
+
+            await MessageBox.ShowAsync($"{selected.Count} oyun kurulum kuyruğuna eklendi!", "Kurulum Kuyruğu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private async void BtnInstallSelected_Click(object? sender, RoutedEventArgs e)
+        {
+            var selected = LibraryService.AllGames.FirstOrDefault(x => x.IsSelected) ?? lbLibraryGames.SelectedItem as LibraryGameItem;
+            if (selected == null)
+            {
+                await MessageBox.ShowAsync("Lütfen yüklemek istediğiniz oyunu seçin.", "Konsola Yükle", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (Model != null)
+            {
+                Model.ActiveTransferTitle = selected.Title;
+                Model.CurrentURL = selected.FilePath;
+                Model.SelectedTabIndex = 0;
+            }
+
+            await Install(selected.FilePath, false);
+        }
+
+        private async void BtnQueueAll_Click(object? sender, RoutedEventArgs e)
+        {
+            var games = LibraryService.FilteredGames.ToList();
+            if (games.Count == 0)
+            {
+                await MessageBox.ShowAsync("Kütüphanede eklenecek oyun bulunamadı.", "Kuyruğa Ekle", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            foreach (var g in games)
+            {
+                InstallQueueManager.Add(g.FilePath, g.Title, g.FormattedSize, g.IconData);
+            }
+
+            await MessageBox.ShowAsync($"Filtrelenen {games.Count} oyunun tümü kurulum kuyruğuna eklendi!", "Kurulum Kuyruğu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        public async void BtnItemAddToQueue_Click(object? sender, RoutedEventArgs e)
+        {
+            if ((sender as Button)?.Tag is LibraryGameItem item)
+            {
+                InstallQueueManager.Add(item.FilePath, item.Title, item.FormattedSize, item.IconData);
+                await SetStatus($"Kuyruğa eklendi: {item.DisplayTitle}");
+            }
+        }
+
+        public async void BtnItemInstall_Click(object? sender, RoutedEventArgs e)
+        {
+            if ((sender as Button)?.Tag is LibraryGameItem item)
+            {
+                if (Model != null)
+                {
+                    Model.ActiveTransferTitle = item.Title;
+                    Model.CurrentURL = item.FilePath;
+                    Model.SelectedTabIndex = 0;
+                }
+                await Install(item.FilePath, false);
+            }
+        }
+
+        public void BtnRemoveQueueItem_Click(object? sender, RoutedEventArgs e)
+        {
+            if ((sender as Button)?.Tag is QueueItem item)
+            {
+                InstallQueueManager.Remove(item);
+            }
+        }
+
+        private void BtnStartQueue_Click(object? sender, RoutedEventArgs e)
+        {
+            StartQueueProcessing();
+        }
+
+        private void BtnStopQueue_Click(object? sender, RoutedEventArgs e)
+        {
+            InstallQueueManager.Stop();
+            if (Model != null)
+            {
+                Model.ActiveTransferStatus = "Kuyruk durduruldu.";
+                Model.IsActiveTransferRunning = false;
+            }
+        }
+
+        private void BtnClearQueue_Click(object? sender, RoutedEventArgs e)
+        {
+            InstallQueueManager.Clear();
+            if (Model != null)
+            {
+                Model.ActiveTransferStatus = "Kuyruk temizlendi.";
+                Model.ActiveTransferTitle = "Kuyruk Boş / Bekleniyor";
+                Model.ActiveTransferPercent = 0;
+            }
+        }
+
+        private async void StartQueueProcessing()
+        {
+            if (InstallQueueManager.Items.Count == 0)
+            {
+                await MessageBox.ShowAsync("Kuyrukta bekleyen oyun yok. Kütüphaneden oyun ekleyin.", "Kurulum Kuyruğu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (InstallQueueManager.IsRunning)
+                return;
+
+            _ = Task.Run(async () =>
+            {
+                await InstallQueueManager.RunQueueAsync(App.Config, async (src) =>
+                {
+                    bool ok = false;
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        var queueItem = InstallQueueManager.CurrentItem;
+                        if (Model != null)
+                        {
+                            Model.CurrentURL = src;
+                            Model.ActiveTransferTitle = queueItem?.DisplayTitle ?? Path.GetFileName(src);
+                            Model.ActiveTransferStatus = "Konsola aktarılıyor...";
+                            Model.IsActiveTransferRunning = true;
+                        }
+                        ok = await Install(src, true);
+                    });
+                    return ok;
+                });
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (Model != null)
+                    {
+                        Model.ActiveTransferStatus = "Kuyruk tamamlandı!";
+                        Model.IsActiveTransferRunning = false;
+                    }
+                });
+            });
         }
     }
 }

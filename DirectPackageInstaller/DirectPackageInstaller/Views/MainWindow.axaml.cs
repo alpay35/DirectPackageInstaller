@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Acornima.Ast;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Diagnostics;
 using DirectPackageInstaller.Tasks;
 using DirectPackageInstaller.ViewModels;
 

@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
+using DirectPackageInstaller.Host;
 using ReactiveUI;
 
 namespace DirectPackageInstaller.Tasks
@@ -36,11 +38,49 @@ namespace DirectPackageInstaller.Tasks
             set => this.RaiseAndSetIfChanged(ref _fileName, value);
         }
 
+        private string _title = string.Empty;
+        public string Title
+        {
+            get => _title;
+            set => this.RaiseAndSetIfChanged(ref _title, value);
+        }
+
+        private string _formattedSize = string.Empty;
+        public string FormattedSize
+        {
+            get => _formattedSize;
+            set => this.RaiseAndSetIfChanged(ref _formattedSize, value);
+        }
+
+        public byte[]? IconData { get; set; }
+
+        private Bitmap? _icon;
+        public Bitmap? Icon
+        {
+            get
+            {
+                if (_icon == null && IconData != null && IconData.Length > 0)
+                {
+                    try
+                    {
+                        using var ms = new MemoryStream(IconData);
+                        _icon = Bitmap.DecodeToHeight(ms, 100);
+                    }
+                    catch { }
+                }
+                return _icon;
+            }
+        }
+
         private QueueItemStatus _status = QueueItemStatus.Pending;
         public QueueItemStatus Status
         {
             get => _status;
-            set => this.RaiseAndSetIfChanged(ref _status, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _status, value);
+                this.RaisePropertyChanged(nameof(StatusBadge));
+            }
         }
 
         private double _progress;
@@ -57,6 +97,19 @@ namespace DirectPackageInstaller.Tasks
             set => this.RaiseAndSetIfChanged(ref _errorMessage, value);
         }
 
+        public string DisplayTitle => string.IsNullOrWhiteSpace(Title) ? FileName : Title;
+
+        public string StatusBadge => Status switch
+        {
+            QueueItemStatus.Pending => "⏳ Bekliyor",
+            QueueItemStatus.Analyzing => "🔍 Taranıyor...",
+            QueueItemStatus.Installing => "⚡ Aktarılıyor",
+            QueueItemStatus.Completed => "✅ Tamamlandı",
+            QueueItemStatus.Failed => "❌ Başarısız",
+            QueueItemStatus.Cancelled => "⏹ İptal",
+            _ => Status.ToString()
+        };
+
         public DateTime AddedAt { get; } = DateTime.Now;
     }
 
@@ -68,9 +121,12 @@ namespace DirectPackageInstaller.Tasks
         private static bool _isRunning;
         public static bool IsRunning => _isRunning;
 
-        public static event Action<QueueItem>? OnItemStatusChanged;
+        public static QueueItem? CurrentItem { get; private set; }
 
-        public static void Add(string source)
+        public static event Action<QueueItem>? OnItemStatusChanged;
+        public static event Action<double, string, string>? OnProgressUpdated;
+
+        public static void Add(string source, string? title = null, string? size = null, byte[]? iconData = null)
         {
             if (string.IsNullOrWhiteSpace(source))
                 return;
@@ -83,6 +139,9 @@ namespace DirectPackageInstaller.Tasks
             {
                 Source = source,
                 FileName = name,
+                Title = title ?? name,
+                FormattedSize = size ?? string.Empty,
+                IconData = iconData,
                 Status = QueueItemStatus.Pending
             };
 
@@ -104,6 +163,16 @@ namespace DirectPackageInstaller.Tasks
         {
             _queueCts?.Cancel();
             _isRunning = false;
+            CurrentItem = null;
+        }
+
+        public static void ReportProgress(double percent, string speed, string transferred)
+        {
+            if (CurrentItem != null)
+            {
+                CurrentItem.Progress = percent;
+            }
+            OnProgressUpdated?.Invoke(percent, speed, transferred);
         }
 
         public static async Task RunQueueAsync(Settings config, Func<string, Task<bool>> installFunc)
@@ -122,6 +191,7 @@ namespace DirectPackageInstaller.Tasks
                     if (nextItem == null)
                         break;
 
+                    CurrentItem = nextItem;
                     nextItem.Status = QueueItemStatus.Installing;
                     OnItemStatusChanged?.Invoke(nextItem);
 
@@ -151,6 +221,7 @@ namespace DirectPackageInstaller.Tasks
             finally
             {
                 _isRunning = false;
+                CurrentItem = null;
             }
         }
     }

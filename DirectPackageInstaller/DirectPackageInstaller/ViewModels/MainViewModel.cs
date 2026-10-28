@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Net;
+using DirectPackageInstaller.Others;
+using DirectPackageInstaller.Tasks;
 using ReactiveUI;
 
 namespace DirectPackageInstaller.ViewModels
@@ -123,6 +126,78 @@ namespace DirectPackageInstaller.ViewModels
         {
             get => _PKGParams;
             set => this.RaiseAndSetIfChanged(ref _PKGParams, value);
+        }
+
+        // NAS & Library Properties
+        private string _nasDirectoryPath = string.Empty;
+        public string NasDirectoryPath
+        {
+            get => _nasDirectoryPath;
+            set => this.RaiseAndSetIfChanged(ref _nasDirectoryPath, value);
+        }
+
+        private string _librarySearchQuery = string.Empty;
+        public string LibrarySearchQuery
+        {
+            get => _librarySearchQuery;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _librarySearchQuery, value);
+                LibraryService.Filter(value);
+            }
+        }
+
+        public ObservableCollection<LibraryGameItem> LibraryGames => LibraryService.FilteredGames;
+        public ObservableCollection<QueueItem> QueueItems => InstallQueueManager.Items;
+
+        // Active Transfer & Queue Dashboard
+        private string _activeTransferTitle = "Kuyruk Boş / Bekleniyor";
+        public string ActiveTransferTitle
+        {
+            get => _activeTransferTitle;
+            set => this.RaiseAndSetIfChanged(ref _activeTransferTitle, value);
+        }
+
+        private double _activeTransferPercent = 0;
+        public double ActiveTransferPercent
+        {
+            get => _activeTransferPercent;
+            set => this.RaiseAndSetIfChanged(ref _activeTransferPercent, value);
+        }
+
+        private string _activeTransferSpeed = "0 MB/s";
+        public string ActiveTransferSpeed
+        {
+            get => _activeTransferSpeed;
+            set => this.RaiseAndSetIfChanged(ref _activeTransferSpeed, value);
+        }
+
+        private string _activeTransferProgressText = "0 MB / 0 MB";
+        public string ActiveTransferProgressText
+        {
+            get => _activeTransferProgressText;
+            set => this.RaiseAndSetIfChanged(ref _activeTransferProgressText, value);
+        }
+
+        private string _activeTransferStatus = "Hazır";
+        public string ActiveTransferStatus
+        {
+            get => _activeTransferStatus;
+            set => this.RaiseAndSetIfChanged(ref _activeTransferStatus, value);
+        }
+
+        private bool _isActiveTransferRunning = false;
+        public bool IsActiveTransferRunning
+        {
+            get => _isActiveTransferRunning;
+            set => this.RaiseAndSetIfChanged(ref _isActiveTransferRunning, value);
+        }
+
+        private int _selectedTabIndex = 0;
+        public int SelectedTabIndex
+        {
+            get => _selectedTabIndex;
+            set => this.RaiseAndSetIfChanged(ref _selectedTabIndex, value);
         }
     }
 

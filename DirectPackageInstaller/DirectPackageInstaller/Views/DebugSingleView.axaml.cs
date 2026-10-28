@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Diagnostics;
 using DirectPackageInstaller.ViewModels;
 
 namespace DirectPackageInstaller.Views

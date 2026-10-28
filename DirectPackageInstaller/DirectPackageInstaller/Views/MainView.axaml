@@ -1,28 +1,24 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-              xmlns:viewModels="clr-namespace:DirectPackageInstaller.ViewModels"
-              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-              x:Class="DirectPackageInstaller.Views.MainView"
-              Foreground="White"
-              Background="#171C2C">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:DirectPackageInstaller.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1050" d:DesignHeight="600"
+             x:Class="DirectPackageInstaller.Views.MainView"
+             Foreground="White"
+             Background="#171C2C">
   <Design.DataContext>
     <viewModels:MainViewModel />
   </Design.DataContext>
     <Grid DragDrop.AllowDrop="True" Name="MainViewGrid">
         <Grid.RowDefinitions>
-            <RowDefinition Height="40"/>
-            <RowDefinition Height="40"/>
-            <RowDefinition/>
-            <RowDefinition Height="40"/>
+            <RowDefinition Height="36"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="28"/>
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="330"/>
-            <ColumnDefinition/>
-        </Grid.ColumnDefinitions>
 
-        <Menu Grid.ColumnSpan="2">
+        <!-- Top Menu -->
+        <Menu Grid.Row="0">
             <MenuItem Header="_Options" Name="menuOptions">
                 <MenuItem Header="_Auto-Discover Consoles" Name="btnAutoDiscover" />
                 <MenuItem Header="_Install Queue" Name="btnInstallQueue" />
@@ -111,48 +107,210 @@
             </MenuItem>
         </Menu>
 
-        <Grid Grid.Row="1" Grid.ColumnSpan="2">
+        <!-- Main Workspace (Center + Right Panel) -->
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="auto"/>
-                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*" MinWidth="480"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition Width="340" MinWidth="260" MaxWidth="480"/>
             </Grid.ColumnDefinitions>
-            <Label Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="5,0,0,0">URL:</Label>
-            <TextBox Grid.Row="0" Grid.Column="1" Margin="5" Text="{Binding CurrentURL, Mode=TwoWay}" Name="tbURL"></TextBox>
-            <Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Right" Margin="5,0,2,0" Name="btnLoad">Open</Button>
-            <Button Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Margin="2,0,5,0" Name="btnAddToQueue" ToolTip.Tip="Add to Install Queue">+</Button>
+
+            <!-- Left / Center: Tab Control -->
+            <TabControl Grid.Column="0" SelectedIndex="{Binding SelectedTabIndex}" Margin="4,0,2,0">
+                
+                <!-- TAB 1: Doğrudan Yükleyici -->
+                <TabItem Header="📥 Doğrudan Yükleyici">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="46"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- URL Input Bar -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="auto"/>
+                                <ColumnDefinition Width="auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="5,0,0,0">URL:</Label>
+                            <TextBox Grid.Column="1" Margin="5" Text="{Binding CurrentURL, Mode=TwoWay}" Name="tbURL" Watermark="PKG URL, debrid linki veya yerel dosya yolu..."></TextBox>
+                            <Button Grid.Column="2" HorizontalAlignment="Right" Margin="3,0,2,0" Name="btnLoad">Open</Button>
+                            <Button Grid.Column="3" HorizontalAlignment="Right" Margin="2,0,5,0" Name="btnAddToQueue" ToolTip.Tip="Kuyruğa Ekle">+</Button>
+                        </Grid>
+
+                        <!-- Preview Area -->
+                        <Grid Grid.Row="1" Name="PreviewGrid">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="280" MinWidth="140"/>
+                                <ColumnDefinition Width="4"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Image Name="IconBox" Margin="8"></Image>
+                            <GridSplitter Name="MainGridSplitter" Grid.Column="1"></GridSplitter>
+
+                            <DataGrid Grid.Column="2" Name="PkgInfoGrid" ItemsSource="{Binding PKGParams}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Param" Binding="{Binding Name}" Width="140"/>
+                                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Grid>
+                </TabItem>
+
+                <!-- TAB 2: PKG Kütüphanesi (NAS / Yerel) -->
+                <TabItem Header="📚 PKG Kütüphanesi (NAS / Yerel)">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="46"/>
+                            <RowDefinition Height="38"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- NAS / Folder Bar -->
+                        <Grid Grid.Row="0" Margin="4,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="auto"/>
+                                <ColumnDefinition Width="auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" VerticalAlignment="Center" Margin="0,0,6,0">NAS / Klasör:</Label>
+                            <TextBox Grid.Column="1" Name="tbNasPath" Text="{Binding NasDirectoryPath, Mode=TwoWay}" Watermark="Örn: \\NAS\ps4-pkg veya D:\ps4-pkg"/>
+                            <Button Grid.Column="2" Name="btnBrowseNas" Margin="6,0,3,0">📁 Gözat...</Button>
+                            <Button Grid.Column="3" Name="btnScanNas" Margin="3,0,0,0">🔄 Tara</Button>
+                        </Grid>
+
+                        <!-- Filter & Quick Actions -->
+                        <Grid Grid.Row="1" Margin="4,0,4,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="auto"/>
+                                <ColumnDefinition Width="auto"/>
+                                <ColumnDefinition Width="auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Name="tbLibrarySearch" Text="{Binding LibrarySearchQuery, Mode=TwoWay}" Watermark="🔍 Oyun adı veya CUSA ara..." Margin="0,0,6,0"/>
+                            <Button Grid.Column="1" Name="btnQueueSelected" Margin="2,0">➕ Seçilenleri Kuyruğa Ekle</Button>
+                            <Button Grid.Column="2" Name="btnInstallSelected" Margin="2,0">🚀 Seçileni Yükle</Button>
+                            <Button Grid.Column="3" Name="btnQueueAll" Margin="2,0">📦 Tümünü Kuyruğa Ekle</Button>
+                        </Grid>
+
+                        <!-- Games List -->
+                        <ListBox Grid.Row="2" Name="lbLibraryGames" ItemsSource="{Binding LibraryGames}" Margin="4" Background="#121622" CornerRadius="4">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#252c42" BorderThickness="0,0,0,1" Padding="6,6" CornerRadius="4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="auto"/>
+                                                <ColumnDefinition Width="68"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <Border Grid.Column="1" CornerRadius="4" ClipToBounds="True" Background="#1b2033" Width="60" Height="60" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Image Source="{Binding Icon}" Stretch="UniformToFill"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="10,0,0,0">
+                                                <TextBlock Text="{Binding DisplayTitle}" FontWeight="Bold" FontSize="13" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#8a99b5" Margin="0,3,0,0"/>
+                                                <TextBlock Text="{Binding FilePath}" FontSize="10" Foreground="#55627d" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0" Spacing="4">
+                                                <Button Content="➕ Kuyruk" Click="BtnItemAddToQueue_Click" Tag="{Binding}" Padding="8,4" FontSize="11"/>
+                                                <Button Content="🚀 Yükle" Click="BtnItemInstall_Click" Tag="{Binding}" Padding="8,4" FontSize="11"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+
+            <!-- Vertical Splitter -->
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center"/>
+
+            <!-- Right Dashboard (Active Transfer & Queue Panel) -->
+            <Border Grid.Column="2" Background="#121622" BorderBrush="#252c42" BorderThickness="1,0,0,0" Padding="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="auto"/>
+                        <RowDefinition Height="6"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Active Transfer Card -->
+                    <Border Grid.Row="0" Background="#1a2030" BorderBrush="#2e3852" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="⚡ Aktif Aktarım Durumu" FontWeight="Bold" FontSize="12" Foreground="#42b983"/>
+                            <TextBlock Text="{Binding ActiveTransferTitle}" FontWeight="SemiBold" FontSize="12" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                            <ProgressBar Height="14" Minimum="0" Maximum="100" Value="{Binding ActiveTransferPercent}" CornerRadius="3" Background="#242c42" Foreground="#42b983"/>
+                            <Grid>
+                                <TextBlock HorizontalAlignment="Left" Text="{Binding ActiveTransferSpeed}" FontSize="11" Foreground="#8a99b5"/>
+                                <TextBlock HorizontalAlignment="Right" Text="{Binding ActiveTransferProgressText}" FontSize="11" Foreground="#8a99b5"/>
+                            </Grid>
+                            <TextBlock Text="{Binding ActiveTransferStatus}" FontSize="10" Foreground="#5f7194" FontStyle="Italic"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Queue List Card -->
+                    <Border Grid.Row="2" Background="#1a2030" BorderBrush="#2e3852" BorderThickness="1" CornerRadius="6" Padding="8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="28"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <TextBlock VerticalAlignment="Center" Text="📋 Sıradaki Oyunlar" FontWeight="Bold" FontSize="12" Foreground="White"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
+                                    <Button Name="btnStartQueue" Padding="6,2" FontSize="11" Background="#238636" Foreground="White" ToolTip.Tip="Kuyruktaki tüm oyunları sırayla yükle">▶ Başlat</Button>
+                                    <Button Name="btnStopQueue" Padding="6,2" FontSize="11" Background="#da3633" Foreground="White" ToolTip.Tip="Kuyruğu durdur">⏹ Durdur</Button>
+                                    <Button Name="btnClearQueue" Padding="6,2" FontSize="11" Background="#30363d" Foreground="White" ToolTip.Tip="Tamamlananları temizle">🗑 Temizle</Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <ListBox Grid.Row="1" ItemsSource="{Binding QueueItems}" Background="Transparent" Margin="0,6,0,0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#242c42" BorderThickness="0,0,0,1" Padding="4,4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="auto"/>
+                                                    <ColumnDefinition Width="auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayTitle}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding FormattedSize}" FontSize="10" Foreground="#8a99b5"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Text="{Binding StatusBadge}" FontSize="11" VerticalAlignment="Center" Margin="4,0"/>
+                                                <Button Grid.Column="2" Content="✕" Click="BtnRemoveQueueItem_Click" Tag="{Binding}" Padding="4,1" FontSize="10" Background="Transparent" Foreground="#8a99b5"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
         </Grid>
 
-
-        <Grid Grid.Row="2" Grid.ColumnSpan="2" Name="PreviewGrid">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="330"/>
-                <ColumnDefinition Width="5"/>
-                <ColumnDefinition/>
-            </Grid.ColumnDefinitions>
-            <Image Name="IconBox"></Image>
-            <GridSplitter Name="MainGridSplitter" Grid.Column="1"></GridSplitter>
-
-            <DataGrid Grid.Column="2" Name="PkgInfoGrid" ItemsSource="{Binding PKGParams}">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Param" Binding="{Binding Name}"/>
-                    <DataGridTextColumn Header="Value" Binding="{Binding Value}"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Grid>
-
-        <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Grid.Column="0" Name="Status"/>
+        <!-- Bottom Status Bar -->
+        <TextBlock Grid.Row="2" Grid.Column="0" Name="Status" Margin="8,4" FontSize="11" Foreground="#8a99b5"/>
     </Grid>
+
     <UserControl.Styles>
         <Style Selector="CheckBox">
             <Setter Property="Width" Value="20"/>
-            <Setter Property="MinHeight" Value="42"/>
-            <Setter Property="Margin" Value="0,-6,0,-16"/>
+            <Setter Property="MinHeight" Value="24"/>
         </Style>
         <Style Selector="TextBlock">
-            <Setter Property="VerticalAlignment" Value="Center"></Setter>
-            <Setter Property="Margin" Value="5,0,5,0"></Setter>
+            <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style Selector="DataGrid">
             <Setter Property="AutoGenerateColumns" Value="False"/>
@@ -162,19 +320,19 @@
             <Setter Property="VerticalScrollBarVisibility" Value="Visible"/>
         </Style>
         <Style Selector="MenuItem >> Label">
-            <Setter Property="HorizontalAlignment" Value="Right"></Setter>
-            <Setter Property="VerticalAlignment" Value="Center"></Setter>
-            <Setter Property="Margin" Value="0,0,5,0"></Setter>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
         </Style>
         <Style Selector="MenuItem >> TextBox">
-            <Setter Property="HorizontalAlignment" Value="Stretch"></Setter>
-            <Setter Property="VerticalAlignment" Value="Center"></Setter>
-            <Setter Property="VerticalContentAlignment" Value="Center"></Setter>
-            <Setter Property="Width" Value="150"></Setter>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Width" Value="150"/>
         </Style>
         <Style Selector="MenuItem.NoChildFocus > MenuItem">
-            <Setter Property="Focusable" Value="False"></Setter>
-            <Setter Property="StaysOpenOnClick" Value="True"></Setter>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="StaysOpenOnClick" Value="True"/>
         </Style>
     </UserControl.Styles>
 </UserControl>
