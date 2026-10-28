@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Net;
 using DirectPackageInstaller.Others;
@@ -198,6 +198,20 @@ namespace DirectPackageInstaller.ViewModels
         {
             get => _selectedTabIndex;
             set => this.RaiseAndSetIfChanged(ref _selectedTabIndex, value);
+        }
+
+        private string _consoleStorageStatus = "💾 Konsol Alanı: Bilinmiyor";
+        public string ConsoleStorageStatus
+        {
+            get => _consoleStorageStatus;
+            set => this.RaiseAndSetIfChanged(ref _consoleStorageStatus, value);
+        }
+
+        private long _consoleFreeBytes = -1;
+        public long ConsoleFreeBytes
+        {
+            get => _consoleFreeBytes;
+            set => this.RaiseAndSetIfChanged(ref _consoleFreeBytes, value);
         }
     }
 

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
-using DirectPackageInstaller.Host;
+using DirectPackageInstaller.Others;
 using ReactiveUI;
 
 namespace DirectPackageInstaller.Tasks
@@ -50,6 +50,13 @@ namespace DirectPackageInstaller.Tasks
         {
             get => _formattedSize;
             set => this.RaiseAndSetIfChanged(ref _formattedSize, value);
+        }
+
+        private long _sizeBytes;
+        public long SizeBytes
+        {
+            get => _sizeBytes;
+            set => this.RaiseAndSetIfChanged(ref _sizeBytes, value);
         }
 
         public byte[]? IconData { get; set; }
@@ -125,8 +132,9 @@ namespace DirectPackageInstaller.Tasks
 
         public static event Action<QueueItem>? OnItemStatusChanged;
         public static event Action<double, string, string>? OnProgressUpdated;
+        public static event Action<QueueItem, string>? OnStorageErrorOccurred;
 
-        public static void Add(string source, string? title = null, string? size = null, byte[]? iconData = null)
+        public static void Add(string source, string? title = null, string? size = null, byte[]? iconData = null, long sizeBytes = 0)
         {
             if (string.IsNullOrWhiteSpace(source))
                 return;
@@ -135,12 +143,18 @@ namespace DirectPackageInstaller.Tasks
             if (string.IsNullOrEmpty(name))
                 name = source;
 
+            if (sizeBytes <= 0 && File.Exists(source))
+            {
+                try { sizeBytes = new FileInfo(source).Length; } catch { }
+            }
+
             var item = new QueueItem
             {
                 Source = source,
                 FileName = name,
                 Title = title ?? name,
-                FormattedSize = size ?? string.Empty,
+                FormattedSize = size ?? (sizeBytes > 0 ? sizeBytes.ToFileSize() : string.Empty),
+                SizeBytes = sizeBytes,
                 IconData = iconData,
                 Status = QueueItemStatus.Pending
             };
@@ -192,6 +206,21 @@ namespace DirectPackageInstaller.Tasks
                         break;
 
                     CurrentItem = nextItem;
+
+                    // 1. Kurulum öncesi depolama alanı kontrolü
+                    if (!string.IsNullOrEmpty(config.PSIP) && config.PSIP != "0.0.0.0" && nextItem.SizeBytes > 0)
+                    {
+                        var spaceCheck = await ConsoleStorageService.CheckStorageBeforeInstallAsync(config.PSIP, nextItem.SizeBytes);
+                        if (!spaceCheck.HasEnoughSpace)
+                        {
+                            nextItem.Status = QueueItemStatus.Failed;
+                            nextItem.ErrorMessage = "Yetersiz Disk Alanı!";
+                            OnItemStatusChanged?.Invoke(nextItem);
+                            OnStorageErrorOccurred?.Invoke(nextItem, spaceCheck.Message);
+                            break; // Disk dolu olduğunda sonraki oyunları boşuna denemeyip durdur
+                        }
+                    }
+
                     nextItem.Status = QueueItemStatus.Installing;
                     OnItemStatusChanged?.Invoke(nextItem);
 
@@ -206,7 +235,15 @@ namespace DirectPackageInstaller.Tasks
                         else
                         {
                             nextItem.Status = QueueItemStatus.Failed;
-                            nextItem.ErrorMessage = "Installation returned failure.";
+                            string err = Installer.LastErrorMessage ?? "Kurulum başarısız oldu.";
+                            nextItem.ErrorMessage = err;
+
+                            if (ConsoleStorageService.IsOutOfSpaceError(err, out string friendlyMsg))
+                            {
+                                OnItemStatusChanged?.Invoke(nextItem);
+                                OnStorageErrorOccurred?.Invoke(nextItem, friendlyMsg);
+                                break; // Konsolda yer kalmadığı için kuyruğu durdur
+                            }
                         }
                     }
                     catch (Exception ex)

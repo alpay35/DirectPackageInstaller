@@ -32,6 +32,7 @@ namespace DirectPackageInstaller.Tasks
         private static bool ForceProxy;
 
         public static PayloadService Payload = new PayloadService();
+        public static string? LastErrorMessage { get; set; }
 
         public static async Task<bool> PushPackage(Settings Config, Source InputType, Stream? PKGStream, string URL, IArchive? Decompressor, DecompressorHelperStream[]? DecompressorStreams, Func<string, Task> SetStatus, Func<string> GetStatus, bool Silent)
         {
@@ -237,6 +238,7 @@ namespace DirectPackageInstaller.Tasks
 
                     if (Result.Contains("SUCCESS:"))
                     {
+                        LastErrorMessage = null;
                         if (!Silent)
                             await MessageBox.ShowAsync("Package Sent!", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
@@ -244,10 +246,16 @@ namespace DirectPackageInstaller.Tasks
                     }
                     else
                     {
-                        if (Result.Contains("0x80990085"))
-                            Result += "\nVerify if your playstation has free space.";
-
-                        await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        if (ConsoleStorageService.IsOutOfSpaceError(Result, out string spaceMsg))
+                        {
+                            LastErrorMessage = spaceMsg;
+                            await MessageBox.ShowAsync(spaceMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                        else
+                        {
+                            LastErrorMessage = Result;
+                            await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
                         return false;
                     }
                 }
@@ -308,6 +316,7 @@ namespace DirectPackageInstaller.Tasks
 
                 if (Result.Contains("\"success\""))
                 {
+                    LastErrorMessage = null;
                     if (!Silent)
                         await MessageBox.ShowAsync("Package Sent!", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
@@ -315,10 +324,16 @@ namespace DirectPackageInstaller.Tasks
                 }
                 else
                 {
-                    if (Result.Contains("0x80990085"))
-                        Result += "\nVerify if your playstation has free space.";
-
-                    await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    if (ConsoleStorageService.IsOutOfSpaceError(Result, out string spaceMsg))
+                    {
+                        LastErrorMessage = spaceMsg;
+                        await MessageBox.ShowAsync(spaceMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    else
+                    {
+                        LastErrorMessage = Result;
+                        await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                     return false;
                 }
             }

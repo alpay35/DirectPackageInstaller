@@ -80,6 +80,7 @@ namespace DirectPackageInstaller.Tests
         }
     }
 
+    [Collection("QueueCollection")]
     public class QueueTests
     {
         [Fact]
@@ -121,6 +122,42 @@ namespace DirectPackageInstaller.Tests
             Assert.Contains(12800, ConsoleDiscoveryService.ProbedPorts);
             Assert.Contains(9090, ConsoleDiscoveryService.ProbedPorts);
             Assert.Contains(9898, ConsoleDiscoveryService.ProbedPorts);
+        }
+    }
+
+    [Collection("QueueCollection")]
+    public class ConsoleStorageTests
+    {
+        [Theory]
+        [InlineData("0x80990085", true)]
+        [InlineData("{\"status\":\"fail\",\"error_code\":2157510789}", true)]
+        [InlineData("{\"status\":\"fail\",\"error_code\":2157510792}", true)]
+        [InlineData("{\"status\":\"fail\",\"error_code\":\"0x80990088\"}", true)]
+        [InlineData("Not enough free space on target device", true)]
+        [InlineData("{\"status\":\"success\",\"task_id\":1}", false)]
+        [InlineData("", false)]
+        public void ConsoleStorage_Detects_ErrorCodes(string input, bool expected)
+        {
+            bool detected = ConsoleStorageService.IsOutOfSpaceError(input, out string message);
+            Assert.Equal(expected, detected);
+            if (expected)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(message));
+            }
+        }
+
+        [Fact]
+        public void Queue_Stores_SizeBytes_And_Format()
+        {
+            InstallQueueManager.Clear();
+            long testSize = 25L * 1024 * 1024 * 1024; // 25 GB
+            InstallQueueManager.Add("https://example.com/cusa12345.pkg", "Test Game", null, null, testSize);
+
+            Assert.Single(InstallQueueManager.Items);
+            var item = InstallQueueManager.Items[0];
+            Assert.Equal(testSize, item.SizeBytes);
+            Assert.Contains("25", item.FormattedSize);
+            InstallQueueManager.Clear();
         }
     }
 }

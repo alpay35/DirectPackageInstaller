@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -143,6 +143,20 @@ namespace DirectPackageInstaller.Views
             btnStartQueue.Click += BtnStartQueue_Click;
             btnStopQueue.Click += BtnStopQueue_Click;
             btnClearQueue.Click += BtnClearQueue_Click;
+            btnCheckConsoleStorage.Click += BtnCheckConsoleStorage_Click;
+
+            InstallQueueManager.OnStorageErrorOccurred += (item, msg) =>
+            {
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    if (Model != null)
+                    {
+                        Model.ActiveTransferStatus = "DURDURULDU: Yetersiz Depolama Alanı!";
+                        Model.IsActiveTransferRunning = false;
+                    }
+                    await MessageBox.ShowAsync(msg, "Yetersiz Depolama Alanı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                });
+            };
 
             btnDHCPService.IsVisible = App.IsWindows;
         }
@@ -1662,7 +1676,7 @@ namespace DirectPackageInstaller.Views
 
             foreach (var game in selected)
             {
-                InstallQueueManager.Add(game.FilePath, game.Title, game.FormattedSize, game.IconData);
+                InstallQueueManager.Add(game.FilePath, game.Title, game.FormattedSize, game.IconData, game.SizeBytes);
                 game.IsSelected = false;
             }
 
@@ -1676,6 +1690,16 @@ namespace DirectPackageInstaller.Views
             {
                 await MessageBox.ShowAsync("Lütfen yüklemek istediğiniz oyunu seçin.", "Konsola Yükle", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
+            }
+
+            if (selected.SizeBytes > 0 && !string.IsNullOrWhiteSpace(App.Config.PSIP))
+            {
+                var spaceCheck = await ConsoleStorageService.CheckStorageBeforeInstallAsync(App.Config.PSIP, selected.SizeBytes);
+                if (!spaceCheck.HasEnoughSpace)
+                {
+                    await MessageBox.ShowAsync(spaceCheck.Message, "Yetersiz Depolama Alanı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
             }
 
             if (Model != null)
@@ -1699,7 +1723,7 @@ namespace DirectPackageInstaller.Views
 
             foreach (var g in games)
             {
-                InstallQueueManager.Add(g.FilePath, g.Title, g.FormattedSize, g.IconData);
+                InstallQueueManager.Add(g.FilePath, g.Title, g.FormattedSize, g.IconData, g.SizeBytes);
             }
 
             await MessageBox.ShowAsync($"Filtrelenen {games.Count} oyunun tümü kurulum kuyruğuna eklendi!", "Kurulum Kuyruğu", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1709,7 +1733,7 @@ namespace DirectPackageInstaller.Views
         {
             if ((sender as Button)?.Tag is LibraryGameItem item)
             {
-                InstallQueueManager.Add(item.FilePath, item.Title, item.FormattedSize, item.IconData);
+                InstallQueueManager.Add(item.FilePath, item.Title, item.FormattedSize, item.IconData, item.SizeBytes);
                 await SetStatus($"Kuyruğa eklendi: {item.DisplayTitle}");
             }
         }
@@ -1718,6 +1742,16 @@ namespace DirectPackageInstaller.Views
         {
             if ((sender as Button)?.Tag is LibraryGameItem item)
             {
+                if (item.SizeBytes > 0 && !string.IsNullOrWhiteSpace(App.Config.PSIP))
+                {
+                    var spaceCheck = await ConsoleStorageService.CheckStorageBeforeInstallAsync(App.Config.PSIP, item.SizeBytes);
+                    if (!spaceCheck.HasEnoughSpace)
+                    {
+                        await MessageBox.ShowAsync(spaceCheck.Message, "Yetersiz Depolama Alanı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
                 if (Model != null)
                 {
                     Model.ActiveTransferTitle = item.Title;
@@ -1725,6 +1759,52 @@ namespace DirectPackageInstaller.Views
                     Model.SelectedTabIndex = 0;
                 }
                 await Install(item.FilePath, false);
+            }
+        }
+
+        private async void BtnCheckConsoleStorage_Click(object? sender, RoutedEventArgs e)
+        {
+            await CheckConsoleStorageAsync(true);
+        }
+
+        public async Task CheckConsoleStorageAsync(bool showDialog)
+        {
+            if (string.IsNullOrWhiteSpace(App.Config.PSIP) || App.Config.PSIP == "0.0.0.0")
+            {
+                if (Model != null)
+                    Model.ConsoleStorageStatus = "💾 Konsol IP Tanımlanmamış";
+
+                if (showDialog)
+                    await MessageBox.ShowAsync("Lütfen Ayarlar menüsünden konsolunuzun (PS4/PS5) IP adresini girin.", "IP Adresi Gerekli", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (Model != null)
+                Model.ConsoleStorageStatus = "⏳ Konsol alanı sorgulanıyor...";
+
+            var result = await ConsoleStorageService.QueryConsoleStorageAsync(App.Config.PSIP);
+            if (result.Success && result.FreeBytes > 0)
+            {
+                if (Model != null)
+                {
+                    Model.ConsoleFreeBytes = result.FreeBytes;
+                    Model.ConsoleStorageStatus = $"💾 Boş Alan: {result.FormattedFreeSpace}";
+                }
+
+                if (showDialog)
+                {
+                    await MessageBox.ShowAsync($"Hedef Konsol Depolama Durumu:\n\nBoş Alan: {result.FormattedFreeSpace}\n\n(Dahili Hafıza: {result.FreeBytes:N0} bayt)", "Konsol Depolama Durumu", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            else
+            {
+                if (Model != null)
+                    Model.ConsoleStorageStatus = "💾 Konsol Alanı: Bilinmiyor";
+
+                if (showDialog)
+                {
+                    await MessageBox.ShowAsync($"Konsol depolama alanı sorgulanamadı:\n\n{result.Message}\n\nNot: Boş alanı önceden tam bayt olarak sorgulamak için konsolunuzda GoldHEN FTP servisinin (Port 2121) açık olması gereklidir.\nFTP kapalı olsa dahi paket aktarımında Sony BGFT servisi alanı otomatik denetleyecektir.", "Depolama Durumu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
         }
 
