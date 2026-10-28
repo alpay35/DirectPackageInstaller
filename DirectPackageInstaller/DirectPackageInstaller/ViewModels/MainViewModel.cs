@@ -228,6 +228,14 @@ namespace DirectPackageInstaller.ViewModels
             set => this.RaiseAndSetIfChanged(ref _selectedConsole, value);
         }
 
+        public ObservableCollection<LogEntry> LogEntries => AppLogService.Entries;
+        public string LogCountText => $"{AppLogService.Entries.Count} kayıt";
+
+        public MainViewModel()
+        {
+            AppLogService.OnLogAdded += _ => this.RaisePropertyChanged(nameof(LogCountText));
+        }
+
         private string _activeConsoleDisplay = "🎮 Hedef Konsol: Tanımlanmadı";
         public string ActiveConsoleDisplay
         {

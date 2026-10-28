@@ -197,4 +197,49 @@ namespace DirectPackageInstaller.Tests
             InstallQueueManager.Clear();
         }
     }
+
+    [Collection("QueueCollection")]
+    public class AppLogServiceTests
+    {
+        [Fact]
+        public void AppLogService_Records_Entries_With_Correct_Properties()
+        {
+            AppLogService.Clear();
+            Assert.Empty(AppLogService.Entries);
+
+            AppLogService.Info("Bilgi mesajı", "TEST");
+            AppLogService.Success("Başarılı mesaj", "TEST");
+            AppLogService.Warning("Uyarı mesajı", "TEST");
+            AppLogService.Error("Hata mesajı", "TEST");
+
+            Assert.Equal(4, AppLogService.Entries.Count);
+
+            var info = AppLogService.Entries[0];
+            Assert.Equal(LogLevel.Info, info.Level);
+            Assert.Equal("Bilgi mesajı", info.Message);
+            Assert.Equal("TEST", info.Category);
+            Assert.Equal("#58a6ff", info.LevelColor);
+
+            var success = AppLogService.Entries[1];
+            Assert.Equal(LogLevel.Success, success.Level);
+            Assert.Equal("#42b983", success.LevelColor);
+
+            var warning = AppLogService.Entries[2];
+            Assert.Equal(LogLevel.Warning, warning.Level);
+            Assert.Equal("#e3b341", warning.LevelColor);
+
+            var error = AppLogService.Entries[3];
+            Assert.Equal(LogLevel.Error, error.Level);
+            Assert.Equal("#f85149", error.LevelColor);
+
+            string allText = AppLogService.GetAllText();
+            Assert.Contains("[TEST] Bilgi mesajı", allText);
+            Assert.Contains("[TEST] Başarılı mesaj", allText);
+            Assert.Contains("[TEST] Uyarı mesajı", allText);
+            Assert.Contains("[TEST] Hata mesajı", allText);
+
+            AppLogService.Clear();
+            Assert.Empty(AppLogService.Entries);
+        }
+    }
 }

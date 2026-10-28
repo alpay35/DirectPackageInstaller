@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -145,6 +145,21 @@ namespace DirectPackageInstaller.Views
             btnClearQueue.Click += BtnClearQueue_Click;
             btnCheckConsoleStorage.Click += BtnCheckConsoleStorage_Click;
             btnSelectConsole.Click += BtnSelectConsole_Click;
+
+            btnCopyLogs.Click += BtnCopyLogs_Click;
+            btnClearLogs.Click += (_, _) => AppLogService.Clear();
+
+            AppLogService.OnLogAdded += entry =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    try
+                    {
+                        lbLogs?.ScrollIntoView(entry);
+                    }
+                    catch { }
+                });
+            };
 
             InstallQueueManager.OnStorageErrorOccurred += (item, msg) =>
             {
@@ -319,6 +334,12 @@ namespace DirectPackageInstaller.Views
              {
                  await MessageBox.ShowAsync("Failed find the Working Directory Path of the DirectPackageInstaller.\nPlease, Restart the Program.", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                  Environment.Exit(0);
+             }
+
+             AppLogService.Info($"DirectPackageInstaller v{SelfUpdate.CurrentVersion} hazır.", "SİSTEM");
+             if (!string.IsNullOrWhiteSpace(App.Config.PSIP) && App.Config.PSIP != "0.0.0.0")
+             {
+                 AppLogService.Info($"Aktif konsol IP: {App.Config.PSIP}", "KONSOL");
              }
         }
 
@@ -1668,6 +1689,7 @@ namespace DirectPackageInstaller.Views
                 Model.ActiveConsoleDisplay = $"🎮 Hedef: {console.Name} ({console.IP})";
                 Model.ConsoleStorageStatus = "💾 Boş Alan: Sorgulanıyor...";
             }
+            AppLogService.Success($"Hedef konsol ayarlandı: {console.Name} ({console.IP})", "KONSOL");
 
             try
             {
@@ -1759,6 +1781,7 @@ namespace DirectPackageInstaller.Views
                         {
                             Model.NasDirectoryPath = path;
                         }
+                        AppLogService.Info($"Kütüphane dizini seçildi: {path}", "KÜTÜPHANE");
                         BtnScanNas_Click(null, null);
                     }
                 }
@@ -1779,6 +1802,7 @@ namespace DirectPackageInstaller.Views
             }
 
             await SetStatus($"Klasör taranıyor: {path}...");
+            AppLogService.Info($"Klasör taranıyor: {path}", "KÜTÜPHANE");
             btnScanNas.IsEnabled = false;
 
             try
@@ -1789,10 +1813,12 @@ namespace DirectPackageInstaller.Views
                 });
 
                 await SetStatus($"Tarama tamamlandı: {count} oyun bulundu.");
+                AppLogService.Success($"Klasör taraması tamamlandı: {count} adet PKG bulundu.", "KÜTÜPHANE");
                 await MessageBox.ShowAsync($"Kütüphane güncellendi!\n{count} adet PKG dosyası bulundu.", "PKG Kütüphanesi", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
+                AppLogService.Error($"Klasör tarama hatası: {ex.Message}", "KÜTÜPHANE");
                 await MessageBox.ShowAsync($"Tarama hatası: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 await SetStatus("Tarama başarısız.");
             }
@@ -1817,6 +1843,7 @@ namespace DirectPackageInstaller.Views
                 game.IsSelected = false;
             }
 
+            AppLogService.Info($"{selected.Count} adet oyun kuyruğa eklendi.", "KUYRUK");
             await MessageBox.ShowAsync($"{selected.Count} oyun kurulum kuyruğuna eklendi!", "Kurulum Kuyruğu", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
@@ -1847,6 +1874,7 @@ namespace DirectPackageInstaller.Views
             }
 
             var queueItem = InstallQueueManager.Add(selected.FilePath, selected.Title, selected.FormattedSize, selected.IconData, selected.SizeBytes, insertAtTop: true);
+            AppLogService.Info($"'{selected.Title}' öncelikli olarak kuyruğun en başına eklendi.", "KUYRUK");
             if (Model != null)
             {
                 Model.ActiveTransferTitle = selected.Title;
@@ -1879,6 +1907,7 @@ namespace DirectPackageInstaller.Views
                 InstallQueueManager.Add(g.FilePath, g.Title, g.FormattedSize, g.IconData, g.SizeBytes);
             }
 
+            AppLogService.Info($"Filtrelenen {games.Count} oyun kuyruğa eklendi.", "KUYRUK");
             await MessageBox.ShowAsync($"Filtrelenen {games.Count} oyunun tümü kurulum kuyruğuna eklendi!", "Kurulum Kuyruğu", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
@@ -1887,6 +1916,7 @@ namespace DirectPackageInstaller.Views
             if ((sender as Button)?.Tag is LibraryGameItem item)
             {
                 InstallQueueManager.Add(item.FilePath, item.Title, item.FormattedSize, item.IconData, item.SizeBytes);
+                AppLogService.Info($"Kuyruğa eklendi: {item.DisplayTitle}", "KUYRUK");
                 await SetStatus($"Kuyruğa eklendi: {item.DisplayTitle}");
             }
         }
@@ -1907,6 +1937,7 @@ namespace DirectPackageInstaller.Views
 
                 // Kuyruğun en başına (1. sıraya) ekle
                 var queueItem = InstallQueueManager.Add(item.FilePath, item.Title, item.FormattedSize, item.IconData, item.SizeBytes, insertAtTop: true);
+                AppLogService.Info($"'{item.Title}' öncelikli olarak kuyruğun en başına eklendi.", "KUYRUK");
 
                 if (Model != null)
                 {
@@ -1947,6 +1978,7 @@ namespace DirectPackageInstaller.Views
             if (Model != null)
                 Model.ConsoleStorageStatus = "⏳ Konsol alanı sorgulanıyor...";
 
+            AppLogService.Info($"Konsol ({App.Config.PSIP}) depolama alanı sorgulanıyor...", "DEPOLAMA");
             var result = await ConsoleStorageService.QueryConsoleStorageAsync(App.Config.PSIP);
             if (result.Success && result.FreeBytes > 0)
             {
@@ -1955,6 +1987,7 @@ namespace DirectPackageInstaller.Views
                     Model.ConsoleFreeBytes = result.FreeBytes;
                     Model.ConsoleStorageStatus = $"💾 Boş Alan: {result.FormattedFreeSpace}";
                 }
+                AppLogService.Success($"Konsol boş depolama alanı: {result.FormattedFreeSpace}", "DEPOLAMA");
 
                 if (showDialog)
                 {
@@ -1965,6 +1998,7 @@ namespace DirectPackageInstaller.Views
             {
                 if (Model != null)
                     Model.ConsoleStorageStatus = "💾 Konsol Alanı: Bilinmiyor";
+                AppLogService.Warning($"Konsol depolama alanı sorgulanamadı: {result.Message}", "DEPOLAMA");
 
                 if (showDialog)
                 {
@@ -1989,6 +2023,7 @@ namespace DirectPackageInstaller.Views
         private void BtnStopQueue_Click(object? sender, RoutedEventArgs e)
         {
             InstallQueueManager.Stop();
+            AppLogService.Warning("Kuyruk kullanıcı tarafından durduruldu.", "KUYRUK");
             if (Model != null)
             {
                 Model.ActiveTransferStatus = "Kuyruk durduruldu.";
@@ -1999,11 +2034,29 @@ namespace DirectPackageInstaller.Views
         private void BtnClearQueue_Click(object? sender, RoutedEventArgs e)
         {
             InstallQueueManager.Clear();
+            AppLogService.Info("Kuyruk temizlendi.", "KUYRUK");
             if (Model != null)
             {
                 Model.ActiveTransferStatus = "Kuyruk temizlendi.";
                 Model.ActiveTransferTitle = "Kuyruk Boş / Bekleniyor";
                 Model.ActiveTransferPercent = 0;
+            }
+        }
+
+        private async void BtnCopyLogs_Click(object? sender, RoutedEventArgs e)
+        {
+            var text = AppLogService.GetAllText();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                await SetStatus("Kopyalanacak log kaydı bulunmuyor.");
+                return;
+            }
+
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(text);
+                await SetStatus("Tüm log kayıtları panoya kopyalandı.");
             }
         }
 
@@ -2053,6 +2106,8 @@ namespace DirectPackageInstaller.Views
                 await Installer.StartServer(App.Config.PCIP);
             }
 
+            AppLogService.Info($"Kuyruk işleme başlatıldı. Toplam {InstallQueueManager.Items.Count} iş var.", "KUYRUK");
+
             _ = Task.Run(async () =>
             {
                 await InstallQueueManager.RunQueueAsync(App.Config, async (src) =>
@@ -2080,6 +2135,10 @@ namespace DirectPackageInstaller.Views
                         bool hasFailed = InstallQueueManager.Items.Any(x => x.Status == QueueItemStatus.Failed);
                         Model.ActiveTransferStatus = hasFailed ? "Kuyruk tamamlandı (Bazı aktarımlar başarısız)." : "Kuyruk tamamlandı!";
                         Model.IsActiveTransferRunning = false;
+                        if (hasFailed)
+                            AppLogService.Warning("Kuyruk tamamlandı ancak bazı paketler aktarılamadı.", "KUYRUK");
+                        else
+                            AppLogService.Success("Kuyruktaki tüm paketlerin aktarımı başarıyla tamamlandı!", "KUYRUK");
                     }
                 });
             });

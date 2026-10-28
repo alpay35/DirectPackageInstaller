@@ -219,6 +219,7 @@ namespace DirectPackageInstaller.Tasks
 
             // 1. Konsolun PC sunucusuna bağlanmasını bekle (en fazla 15 saniye)
             int waitConnectCount = 0;
+            bool connected = false;
             while (!ct.IsCancellationRequested && Installer.Server.Connections == 0 && waitConnectCount < 30)
             {
                 await Task.Delay(500, ct);
@@ -228,11 +229,22 @@ namespace DirectPackageInstaller.Tasks
                     break;
             }
 
+            if (Installer.Server.Connections > 0)
+            {
+                connected = true;
+                AppLogService.Info("Konsol PC sunucusuna bağlandı. Veri indirme aktarımı başladı...", "SUNUCU");
+            }
+
             // 2. Konsol indirmeyi sürdürdüğü sürece (bağlantı açıkken) bekle
             while (!ct.IsCancellationRequested && 
                    (Installer.Server.Connections > 0 || (Installer.Server.Decompress?.Tasks.Any(x => x.Value.Running) ?? false)))
             {
                 await Task.Delay(1000, ct);
+            }
+
+            if (connected)
+            {
+                AppLogService.Success("Konsol veri indirme bağlantısını tamamladı.", "SUNUCU");
             }
 
             // 3. Paket geçişleri arasında konsol servisinin rahatlaması için kısa bekleme
@@ -268,6 +280,7 @@ namespace DirectPackageInstaller.Tasks
                         {
                             nextItem.Status = QueueItemStatus.Failed;
                             nextItem.ErrorMessage = "Yetersiz Disk Alanı!";
+                            AppLogService.Error($"Konsolda yetersiz depolama alanı! Gerekli: {nextItem.SizeBytes.ToFileSize()}", "DİSK");
                             OnItemStatusChanged?.Invoke(nextItem);
                             OnStorageErrorOccurred?.Invoke(nextItem, spaceCheck.Message);
                             break; // Disk dolu olduğunda sonraki oyunları boşuna denemeyip durdur
@@ -279,9 +292,11 @@ namespace DirectPackageInstaller.Tasks
 
                     try
                     {
+                        AppLogService.Info($"Aktarım başlatılıyor: {nextItem.DisplayTitle} ({nextItem.FormattedSize})", "KUYRUK");
                         bool success = await installFunc(nextItem.Source);
                         if (success)
                         {
+                            AppLogService.Success($"Paket konsola bildirildi ({nextItem.DisplayTitle}). Konsolun indirmesi bekleniyor...", "RPI");
                             // 2. Aktarımın tamamlanmasını bekle (PS4'ün HTTP üzerinden indirmeyi bitirmesi)
                             await WaitForTransferCompletionAsync(ct);
 
@@ -289,6 +304,7 @@ namespace DirectPackageInstaller.Tasks
                             {
                                 nextItem.Status = QueueItemStatus.Completed;
                                 nextItem.Progress = 100.0;
+                                AppLogService.Success($"'{nextItem.DisplayTitle}' aktarımı %100 başarıyla tamamlandı.", "BAŞARILI");
                             }
                         }
                         else
@@ -296,6 +312,7 @@ namespace DirectPackageInstaller.Tasks
                             nextItem.Status = QueueItemStatus.Failed;
                             string err = Installer.LastErrorMessage ?? "Kurulum başlatılamadı.";
                             nextItem.ErrorMessage = err;
+                            AppLogService.Error($"'{nextItem.DisplayTitle}' aktarımı başarısız: {err}", "HATA");
 
                             if (ConsoleStorageService.IsOutOfSpaceError(err, out string friendlyMsg))
                             {

@@ -242,7 +242,9 @@
                         <RowDefinition Height="6"/>
                         <RowDefinition Height="auto"/>
                         <RowDefinition Height="6"/>
-                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="3*" MinHeight="100"/>
+                        <RowDefinition Height="6"/>
+                        <RowDefinition Height="2*" MinHeight="90"/>
                     </Grid.RowDefinitions>
 
                     <!-- Target Console & Storage Status Card -->
@@ -311,6 +313,59 @@
                                                 <Button Grid.Column="2" Content="✕" Click="BtnRemoveQueueItem_Click" Tag="{Binding}" Padding="4,1" FontSize="10" Background="Transparent" Foreground="#8a99b5"/>
                                             </Grid>
                                         </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Splitter between Queue and Log -->
+                    <GridSplitter Grid.Row="5" Height="4" HorizontalAlignment="Stretch" Background="#242c42" Cursor="SizeNorthSouth" Margin="0,1"/>
+
+                    <!-- Live Process Log Card -->
+                    <Border Grid.Row="6" Background="#1a2030" BorderBrush="#2e3852" BorderThickness="1" CornerRadius="6" Padding="8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="28"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                                    <TextBlock Text="📜 İşlem Günlüğü" FontWeight="Bold" FontSize="12" Foreground="#58a6ff"/>
+                                    <Border Background="#21262d" CornerRadius="3" Padding="4,1">
+                                        <TextBlock Text="{Binding LogCountText}" FontSize="9" Foreground="#8a99b5"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
+                                    <Button Name="btnCopyLogs" Padding="6,2" FontSize="11" Background="#21262d" Foreground="#58a6ff" ToolTip.Tip="Tüm logları panoya kopyala">📋 Kopyala</Button>
+                                    <Button Name="btnClearLogs" Padding="6,2" FontSize="11" Background="#21262d" Foreground="#8a99b5" ToolTip.Tip="Log ekranını temizle">🗑 Temizle</Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Log List Box -->
+                            <ListBox Grid.Row="1" Name="lbLogs" ItemsSource="{Binding LogEntries}" Background="#0d1117" BorderBrush="#21262d" BorderThickness="1" CornerRadius="4" Margin="0,6,0,0" Padding="2">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="auto"/>
+                                                <ColumnDefinition Width="auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Timestamp -->
+                                            <TextBlock Grid.Column="0" Text="{Binding TimeString}" FontFamily="Consolas, monospace" FontSize="10" Foreground="#6e7681" Margin="2,0,5,0" VerticalAlignment="Center"/>
+
+                                            <!-- Category Badge -->
+                                            <Border Grid.Column="1" Background="{Binding BadgeBackground}" BorderBrush="{Binding LevelColor}" BorderThickness="1" CornerRadius="3" Padding="3,0" Margin="0,0,5,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Category}" FontFamily="Consolas, monospace" FontSize="9" FontWeight="Bold" Foreground="{Binding LevelColor}"/>
+                                            </Border>
+
+                                            <!-- Message Text -->
+                                            <TextBlock Grid.Column="2" Text="{Binding Message}" FontFamily="Consolas, monospace" FontSize="10" Foreground="{Binding TextColor}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
