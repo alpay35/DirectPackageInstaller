@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +21,8 @@ namespace DirectPackageInstaller.Others
 
     public static class ConsoleDiscoveryService
     {
-        public static readonly int[] ProbedPorts = new int[] { 12800, 9090, 9898 };
+        public static readonly int[] ProbedPorts = new int[] { 12800, 9090, 9898, 2121 };
+        public static List<DiscoveredConsole> LastDiscoveredConsoles { get; set; } = new List<DiscoveredConsole>();
 
         public static async Task<List<DiscoveredConsole>> DiscoverAsync(
             Action<int, int>? onProgress = null,
@@ -163,6 +164,17 @@ namespace DirectPackageInstaller.Others
                         Port = 9898,
                         Name = "PS4 / PS5 (DPI Listener)",
                         ServiceType = "DirectPackageInstaller Server"
+                    };
+                }
+
+                if (port == 2121)
+                {
+                    return new DiscoveredConsole
+                    {
+                        IP = ip,
+                        Port = 2121,
+                        Name = "PS4 / PS5 (GoldHEN FTP)",
+                        ServiceType = "GoldHEN FTP Server"
                     };
                 }
 

@@ -213,6 +213,27 @@ namespace DirectPackageInstaller.ViewModels
             get => _consoleFreeBytes;
             set => this.RaiseAndSetIfChanged(ref _consoleFreeBytes, value);
         }
+
+        private ObservableCollection<DiscoveredConsole> _discoveredConsoles = new ObservableCollection<DiscoveredConsole>();
+        public ObservableCollection<DiscoveredConsole> DiscoveredConsoles
+        {
+            get => _discoveredConsoles;
+            set => this.RaiseAndSetIfChanged(ref _discoveredConsoles, value);
+        }
+
+        private DiscoveredConsole? _selectedConsole;
+        public DiscoveredConsole? SelectedConsole
+        {
+            get => _selectedConsole;
+            set => this.RaiseAndSetIfChanged(ref _selectedConsole, value);
+        }
+
+        private string _activeConsoleDisplay = "🎮 Hedef Konsol: Tanımlanmadı";
+        public string ActiveConsoleDisplay
+        {
+            get => _activeConsoleDisplay;
+            set => this.RaiseAndSetIfChanged(ref _activeConsoleDisplay, value);
+        }
     }
 
     public class PkgParamInfo

@@ -66,7 +66,7 @@ namespace DirectPackageInstaller
 
         static HttpClient Client = new HttpClient()
         {
-            Timeout = TimeSpan.FromMilliseconds(1000)
+            Timeout = TimeSpan.FromMilliseconds(2500)
         };
         
         
@@ -84,6 +84,16 @@ namespace DirectPackageInstaller
                     return true;
             }
             catch  { }
+
+            try
+            {
+                using var tcp = new System.Net.Sockets.TcpClient();
+                using var cts = new System.Threading.CancellationTokenSource(1500);
+                await tcp.ConnectAsync(IP, 9090, cts.Token);
+                return true;
+            }
+            catch { }
+
             return false;
         } 
 
@@ -97,10 +107,20 @@ namespace DirectPackageInstaller
             {
                 using var Response = await Client.GetAsync(APIUrl);
                 var Resp = await Response.Content.ReadAsStringAsync();
-                if (Resp.Contains("Unsupported method") && Resp.Contains("fail"))
+                if (Resp.Contains("Unsupported method") || Resp.Contains("fail") || Resp.Contains("status"))
                     return true;
             }
             catch  { }
+
+            try
+            {
+                using var tcp = new System.Net.Sockets.TcpClient();
+                using var cts = new System.Threading.CancellationTokenSource(1500);
+                await tcp.ConnectAsync(IP, 12800, cts.Token);
+                return true;
+            }
+            catch { }
+
             return false;
         }
 

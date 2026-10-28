@@ -144,6 +144,7 @@ namespace DirectPackageInstaller.Views
             btnStopQueue.Click += BtnStopQueue_Click;
             btnClearQueue.Click += BtnClearQueue_Click;
             btnCheckConsoleStorage.Click += BtnCheckConsoleStorage_Click;
+            btnSelectConsole.Click += BtnSelectConsole_Click;
 
             InstallQueueManager.OnStorageErrorOccurred += (item, msg) =>
             {
@@ -268,7 +269,11 @@ namespace DirectPackageInstaller.Views
             }
 
             if (!string.IsNullOrEmpty(App.Config.PSIP))
+            {
                 await Installer.StartServer(App.Config.PCIP);
+                Model.ActiveConsoleDisplay = $"🎮 Hedef: PS ({App.Config.PSIP})";
+                _ = CheckConsoleStorageAsync(false);
+            }
 
              if (App.Config.EnableCNL)
              {
@@ -998,7 +1003,10 @@ namespace DirectPackageInstaller.Views
                     {
                         if (!await IPHelper.IsEtaHenOnline(App.Config.PSIP))
                         {
-                            await MessageBox.ShowAsync($"RPI, GoldHEN nor etaHEN Found at {App.Config.PSIP}, Verify if is running.\nYou may need re-enable the payload server.", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            string notFoundMsg = $"RPI, GoldHEN nor etaHEN Found at {App.Config.PSIP}, Verify if is running.\nYou may need re-enable the payload server.";
+                            Installer.LastErrorMessage = notFoundMsg;
+                            if (!Silent)
+                                await MessageBox.ShowAsync(notFoundMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             return false;
                         }
                     }
@@ -1501,16 +1509,45 @@ namespace DirectPackageInstaller.Views
                     Dispatcher.UIThread.Post(async () => await SetStatus($"{LocalizationManager.Get("AutoDiscoverSearching")} ({scanned}/{total})"));
                 });
 
+                ConsoleDiscoveryService.LastDiscoveredConsoles = found;
+
+                if (Model != null)
+                {
+                    Model.DiscoveredConsoles.Clear();
+                    foreach (var c in found)
+                        Model.DiscoveredConsoles.Add(c);
+                }
+
                 if (found.Count > 0)
                 {
-                    var primary = found.First();
-                    if (Model != null)
+                    DiscoveredConsole? selectedConsole = null;
+
+                    if (found.Count == 1)
                     {
-                        Model.PS4IP = primary.IP;
+                        selectedConsole = found[0];
                     }
-                    string details = string.Join("\n", found.Select(c => $"• {c.Name} -> {c.IP}:{c.Port} ({c.ServiceType})"));
-                    await MessageBox.ShowAsync(string.Format(LocalizationManager.Get("AutoDiscoverFound"), found.Count, primary.IP) + $"\n\n{details}", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    await SetStatus($"Connected: {primary.Name} ({primary.IP})");
+                    else
+                    {
+                        // Birden fazla konsol bulundu: Kullanıcının tıklayarak seçmesi için pencere aç
+                        var options = found.Select(c => $"{c.Name} - {c.IP} ({c.ServiceType})").ToArray();
+                        var choiceBox = new Select(options);
+                        choiceBox.Caption = "Yüklenecek Konsolu Seçin (Tıklayın):";
+                        if (await choiceBox.ShowDialogAsync() == DialogResult.OK && !string.IsNullOrEmpty(choiceBox.Choice))
+                        {
+                            int idx = Array.IndexOf(options, choiceBox.Choice);
+                            if (idx >= 0 && idx < found.Count)
+                                selectedConsole = found[idx];
+                        }
+
+                        if (selectedConsole == null)
+                            selectedConsole = found[0];
+                    }
+
+                    if (selectedConsole != null)
+                    {
+                        ApplyTargetConsole(selectedConsole);
+                        await MessageBox.ShowAsync($"Seçilen Hedef Konsol:\n\n{selectedConsole.Name}\nIP Adresi: {selectedConsole.IP}\nServis: {selectedConsole.ServiceType}\n\nKurulumlar bu konsola aktarılacaktır.", "Konsol Seçildi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
                 else
                 {
@@ -1523,6 +1560,63 @@ namespace DirectPackageInstaller.Views
                 await MessageBox.ShowAsync("Discovery failed: " + ex.Message, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 await SetStatus(LocalizationManager.Get("StatusReady"));
             }
+        }
+
+        private async void BtnSelectConsole_Click(object? sender, RoutedEventArgs e)
+        {
+            var consoles = ConsoleDiscoveryService.LastDiscoveredConsoles;
+            if (consoles.Count == 0)
+            {
+                var ask = await MessageBox.ShowAsync(
+                    "Henüz ağdaki konsollar taranmadı.\n\nAğdaki PS4 / PS5 konsollarını şimdi otomatik olarak aramak istiyor musunuz?",
+                    "Konsol Bul & Seç",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (ask == DialogResult.Yes)
+                {
+                    BtnAutoDiscoverOnClick(sender, e);
+                }
+                return;
+            }
+
+            var options = consoles.Select(c => $"{c.Name} - {c.IP} ({c.ServiceType})").ToArray();
+            var choiceBox = new Select(options);
+            choiceBox.Caption = "Yüklenecek Konsolu Seçin (Tıklayın):";
+            if (await choiceBox.ShowDialogAsync() == DialogResult.OK && !string.IsNullOrEmpty(choiceBox.Choice))
+            {
+                int idx = Array.IndexOf(options, choiceBox.Choice);
+                if (idx >= 0 && idx < consoles.Count)
+                {
+                    ApplyTargetConsole(consoles[idx]);
+                    await MessageBox.ShowAsync($"Hedef konsol güncellendi:\n\n{consoles[idx].Name} ({consoles[idx].IP})\n\nKurulumlar bu cihaza aktarılacaktır.", "Konsol Seçildi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        private async void ApplyTargetConsole(DiscoveredConsole console)
+        {
+            if (console == null) return;
+
+            App.Config.PSIP = console.IP;
+            if (Model != null)
+            {
+                Model.PS4IP = console.IP;
+                Model.SelectedConsole = console;
+                Model.ActiveConsoleDisplay = $"🎮 Hedef: {console.Name} ({console.IP})";
+                Model.ConsoleStorageStatus = "💾 Boş Alan: Sorgulanıyor...";
+            }
+
+            try
+            {
+                var ini = new Ini(App.SettingsPath, "Settings");
+                ini.SetValue("PSIP", console.IP);
+            }
+            catch { }
+
+            await SetStatus($"Aktif Hedef Konsol: {console.Name} ({console.IP})");
+
+            await CheckConsoleStorageAsync(false);
         }
 
         private async void BtnAddToQueueOnClick(object? sender, RoutedEventArgs e)
@@ -1570,7 +1664,7 @@ namespace DirectPackageInstaller.Views
                         {
                             if (Model != null)
                                 Model.CurrentURL = src;
-                            ok = await Install(src, true);
+                            ok = await PreparePackageAndInstall(src, true);
                         });
                         return ok;
                     });
@@ -1709,7 +1803,7 @@ namespace DirectPackageInstaller.Views
                 Model.SelectedTabIndex = 0;
             }
 
-            await Install(selected.FilePath, false);
+            await PreparePackageAndInstall(selected.FilePath, false);
         }
 
         private async void BtnQueueAll_Click(object? sender, RoutedEventArgs e)
@@ -1758,7 +1852,7 @@ namespace DirectPackageInstaller.Views
                     Model.CurrentURL = item.FilePath;
                     Model.SelectedTabIndex = 0;
                 }
-                await Install(item.FilePath, false);
+                await PreparePackageAndInstall(item.FilePath, false);
             }
         }
 
@@ -1868,20 +1962,130 @@ namespace DirectPackageInstaller.Views
                             Model.ActiveTransferStatus = "Konsola aktarılıyor...";
                             Model.IsActiveTransferRunning = true;
                         }
-                        ok = await Install(src, true);
+                        ok = await PreparePackageAndInstall(src, true);
                     });
                     return ok;
                 });
 
                 Dispatcher.UIThread.Post(() =>
                 {
-                    if (Model != null)
+                    if (Model != null && Model.ActiveTransferStatus != "DURDURULDU: Yetersiz Depolama Alanı!")
                     {
                         Model.ActiveTransferStatus = "Kuyruk tamamlandı!";
                         Model.IsActiveTransferRunning = false;
                     }
                 });
             });
+        }
+
+        public async Task<bool> PreparePackageAndInstall(string source, bool silent)
+        {
+            if (string.IsNullOrWhiteSpace(source))
+                return false;
+
+            try
+            {
+                string sourcePackage = source;
+                bool limitedFHost = false;
+
+                if (File.Exists(sourcePackage) || sourcePackage.IsFilePath())
+                {
+                    PKGStream?.Close();
+                    PKGStream?.Dispose();
+                    PKGStream = null;
+
+                    if (sourcePackage.EndsWith(".json", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        PKGStream = SplitHelper.OpenLocalJSON(sourcePackage);
+                        InputType = Source.File | Source.JSON;
+                    }
+                    else
+                    {
+                        PKGStream = File.Open(sourcePackage, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        InputType = Source.File;
+                    }
+
+                    var info = PKGStream.GetPKGInfo();
+                    if (info.HasValue)
+                    {
+                        Installer.CurrentPKG = info.Value;
+                        if (Model != null)
+                        {
+                            Model.PKGParams.Clear();
+                            Model.PKGParams = info.Value.Params;
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception("PKG başlık bilgileri çözümlenemedi.");
+                    }
+                }
+                else if (sourcePackage.IsValidURL())
+                {
+                    PKGStream?.Close();
+                    PKGStream?.Dispose();
+                    PKGStream = null;
+
+                    if (sourcePackage.EndsWith(".json", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        PKGStream = SplitHelper.OpenRemoteJSON(sourcePackage);
+                        InputType = Source.URL | Source.JSON;
+                    }
+                    else
+                    {
+                        InputType = Source.URL;
+                        var fhStream = await LoadUrl(sourcePackage);
+                        if (fhStream == null)
+                        {
+                            Installer.LastErrorMessage = "URL akışı açılamadı: " + sourcePackage;
+                            return false;
+                        }
+
+                        limitedFHost = fhStream.SingleConnection;
+                        PKGStream = fhStream;
+
+                        if (limitedFHost)
+                        {
+                            if (PKGStream is FileHostStream hostStream)
+                                hostStream.KeepAlive = true;
+
+                            var downTask = Downloader.CreateTask(sourcePackage, PKGStream);
+                            while (downTask.SafeLength == 0 && downTask.Running)
+                                await Task.Delay(100);
+
+                            InputType |= Source.DiskCache;
+                            PKGStream = new VirtualStream(downTask.OpenRead(), 0, downTask.SafeLength) { ForceAmount = true };
+                        }
+                    }
+
+                    var info = PKGStream.GetPKGInfo();
+                    if (info.HasValue)
+                    {
+                        Installer.CurrentPKG = info.Value;
+                        if (Model != null)
+                        {
+                            Model.PKGParams.Clear();
+                            Model.PKGParams = info.Value.Params;
+                        }
+                    }
+                }
+                else
+                {
+                    Installer.LastErrorMessage = "Geçersiz dosya veya URL: " + source;
+                    if (!silent)
+                        await MessageBox.ShowAsync("Geçersiz dosya veya URL:\n" + source, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                return await Install(sourcePackage, silent);
+            }
+            catch (Exception ex)
+            {
+                Installer.LastErrorMessage = ex.Message;
+                if (!silent)
+                    await MessageBox.ShowAsync("Paket hazırlanamadı:\n" + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
         }
     }
 }
