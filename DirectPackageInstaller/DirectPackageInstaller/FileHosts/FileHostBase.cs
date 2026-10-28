@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -178,7 +178,7 @@ namespace DirectPackageInstaller.FileHosts
         public static FileHostBase[] Hosts => new FileHostBase[] {
                 new Mediafire(), new GoogleDrive(), new PixelDrain(), 
                 new AllDebrid(), new RealDebrid(), new DebridLink(),
-                new OneFichier(), //new DataNodes()
+                new OneFichier(), new TorBox(), new GoFile(), new Buzzheavier()
         };
     }
 

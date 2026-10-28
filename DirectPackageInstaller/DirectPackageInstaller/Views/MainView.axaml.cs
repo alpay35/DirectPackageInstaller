@@ -58,6 +58,8 @@ namespace DirectPackageInstaller.Views
 
         private DateTime LastTransferProgressUpdate = DateTime.MinValue;
 
+
+
         public MainViewModel? Model => (MainViewModel?)DataContext;
         
         public MainView()
@@ -114,6 +116,24 @@ namespace DirectPackageInstaller.Views
 
             AddHandler(DragDrop.DragOverEvent, DragOver);
             AddHandler(DragDrop.DropEvent, DropEventEvent);
+
+            btnAutoDiscover = this.Find<MenuItem>("btnAutoDiscover");
+            btnInstallQueue = this.Find<MenuItem>("btnInstallQueue");
+            btnLanguage = this.Find<MenuItem>("btnLanguage");
+            btnLangTR = this.Find<MenuItem>("btnLangTR");
+            btnLangEN = this.Find<MenuItem>("btnLangEN");
+            btnAddToQueue = this.Find<Button>("btnAddToQueue");
+            menuOptions = this.Find<MenuItem>("menuOptions");
+            menuIPAddress = this.Find<MenuItem>("menuIPAddress");
+            menuDebrids = this.Find<MenuItem>("menuDebrids");
+
+            if (btnAutoDiscover != null) btnAutoDiscover.Click += BtnAutoDiscoverOnClick;
+            if (btnInstallQueue != null) btnInstallQueue.Click += BtnInstallQueueOnClick;
+            if (btnLangTR != null) btnLangTR.Click += (_, _) => SetLanguage("tr");
+            if (btnLangEN != null) btnLangEN.Click += (_, _) => SetLanguage("en");
+            if (btnAddToQueue != null) btnAddToQueue.Click += BtnAddToQueueOnClick;
+
+            ApplyLocalization();
 
             btnDHCPService.IsVisible = App.IsWindows;
         }
@@ -1446,6 +1466,118 @@ namespace DirectPackageInstaller.Views
             }
 
             return base.MeasureCore(availableSize);
+        }
+
+        private async void BtnAutoDiscoverOnClick(object? sender, RoutedEventArgs e)
+        {
+            await SetStatus(LocalizationManager.Get("AutoDiscoverSearching"));
+            try
+            {
+                var found = await ConsoleDiscoveryService.DiscoverAsync((scanned, total) =>
+                {
+                    Dispatcher.UIThread.Post(async () => await SetStatus($"{LocalizationManager.Get("AutoDiscoverSearching")} ({scanned}/{total})"));
+                });
+
+                if (found.Count > 0)
+                {
+                    var primary = found.First();
+                    if (Model != null)
+                    {
+                        Model.PS4IP = primary.IP;
+                    }
+                    string details = string.Join("\n", found.Select(c => $"• {c.Name} -> {c.IP}:{c.Port} ({c.ServiceType})"));
+                    await MessageBox.ShowAsync(string.Format(LocalizationManager.Get("AutoDiscoverFound"), found.Count, primary.IP) + $"\n\n{details}", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await SetStatus($"Connected: {primary.Name} ({primary.IP})");
+                }
+                else
+                {
+                    await MessageBox.ShowAsync(LocalizationManager.Get("AutoDiscoverNone"), "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    await SetStatus(LocalizationManager.Get("StatusReady"));
+                }
+            }
+            catch (Exception ex)
+            {
+                await MessageBox.ShowAsync("Discovery failed: " + ex.Message, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                await SetStatus(LocalizationManager.Get("StatusReady"));
+            }
+        }
+
+        private async void BtnAddToQueueOnClick(object? sender, RoutedEventArgs e)
+        {
+            var url = Model?.CurrentURL;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                await MessageBox.ShowAsync("Please enter a PKG URL or select a file first.", LocalizationManager.Get("Queue"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            InstallQueueManager.Add(url);
+            await MessageBox.ShowAsync($"Added to queue: {Path.GetFileName(url)}\nTotal items: {InstallQueueManager.Items.Count}", LocalizationManager.Get("Queue"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private async void BtnInstallQueueOnClick(object? sender, RoutedEventArgs e)
+        {
+            if (InstallQueueManager.Items.Count == 0)
+            {
+                await MessageBox.ShowAsync("The queue is empty. Add PKG files/URLs using the '+' button.", LocalizationManager.Get("Queue"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (InstallQueueManager.IsRunning)
+            {
+                var stopChoice = await MessageBox.ShowAsync("Queue is running. Stop queue?", LocalizationManager.Get("Queue"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (stopChoice == DialogResult.Yes)
+                {
+                    InstallQueueManager.Stop();
+                }
+                return;
+            }
+
+            string queueSummary = string.Join("\n", InstallQueueManager.Items.Select((x, idx) => $"{idx + 1}. [{x.Status}] {x.FileName}"));
+            var reply = await MessageBox.ShowAsync($"Queue Items ({InstallQueueManager.Items.Count}):\n\n{queueSummary}\n\nStart sequential installation?", LocalizationManager.Get("Queue"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (reply == DialogResult.Yes)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await InstallQueueManager.RunQueueAsync(App.Config, async (src) =>
+                    {
+                        bool ok = false;
+                        await Dispatcher.UIThread.InvokeAsync(async () =>
+                        {
+                            if (Model != null)
+                                Model.CurrentURL = src;
+                            ok = await Install(src, true);
+                        });
+                        return ok;
+                    });
+                });
+            }
+        }
+
+        private void SetLanguage(string lang)
+        {
+            LocalizationManager.Instance.CurrentLanguage = lang;
+            ApplyLocalization();
+        }
+
+        private void ApplyLocalization()
+        {
+            try
+            {
+                if (menuOptions != null) menuOptions.Header = "_" + LocalizationManager.Get("Options");
+                if (btnAutoDiscover != null) btnAutoDiscover.Header = "_" + LocalizationManager.Get("AutoDiscover");
+                if (btnInstallQueue != null) btnInstallQueue.Header = "_" + LocalizationManager.Get("Queue");
+                if (btnLanguage != null) btnLanguage.Header = "_" + LocalizationManager.Get("Language");
+                if (btnProxyDownload != null) btnProxyDownload.Header = "_" + LocalizationManager.Get("ProxyDownloads");
+                if (btnSegmentedDownload != null) btnSegmentedDownload.Header = "_" + LocalizationManager.Get("SegmentedDownloads");
+                if (btnTransferProgress != null) btnTransferProgress.Header = "_" + LocalizationManager.Get("TransferProgress");
+                if (btnCNLService != null) btnCNLService.Header = "_" + LocalizationManager.Get("CNLSupport");
+                if (btnDHCPService != null) btnDHCPService.Header = "_" + LocalizationManager.Get("DHCPServer");
+                if (menuIPAddress != null) menuIPAddress.Header = "_" + LocalizationManager.Get("IPAddress");
+                if (menuDebrids != null) menuDebrids.Header = "_" + LocalizationManager.Get("DebridSettings");
+            }
+            catch { }
         }
     }
 }

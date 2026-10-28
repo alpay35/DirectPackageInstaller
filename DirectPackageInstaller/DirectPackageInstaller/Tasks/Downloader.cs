@@ -22,6 +22,7 @@ namespace DirectPackageInstaller.Tasks
                 }
 
                 File.WriteAllText("Cache.error.log", OldTask.Error.ToString());
+                OldTask.Dispose();
                 Tasks.Remove(URL);
             }
 
@@ -132,7 +133,7 @@ namespace DirectPackageInstaller.Tasks
         }
     }
 
-    public unsafe struct DownloaderTask
+    public unsafe struct DownloaderTask : IDisposable
     {
         public string TempFile;
         public string Url;
@@ -161,6 +162,16 @@ namespace DirectPackageInstaller.Tasks
 
         public long* Length;
         public long* ReadyLength;
+
+        public void Dispose()
+        {
+            if (ReadyLength != null)
+            {
+                Marshal.FreeHGlobal((IntPtr)ReadyLength);
+                ReadyLength = null;
+                Length = null;
+            }
+        }
 
         public long SafeLength
         {

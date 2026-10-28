@@ -1,268 +1,270 @@
 # DirectPackageInstaller
 
-A tool to preview and send PKG files to your PS4 or PS5 using direct download links.  
-This tool supports three different methods for sending PKGs:
+Doğrudan indirme bağlantılarını kullanarak PKG dosyalarını önizlemenizi ve PS4 veya PS5 konsolunuza göndermenizi sağlayan güçlü bir araçtır.  
+Bu araç, konsola PKG göndermek için üç farklı yöntemi destekler:
 
--   Remote Package Installer Homebrew
--   GoldHEN Payload Server    
--   etaHEN DPIv2 API
-    
+- **Remote Package Installer Homebrew**
+- **GoldHEN Payload Server**
+- **etaHEN DPIv2 API** (PS5 desteği)
 
-Features
-----------
+---
 
--   Preview PKG files
--   Standalone PS4 package downloads
--   PS5 etaHEN support
--   Automatic proxying to speed up PS4 downloads
--   Support for RAR/7z compressed files
--   Resumable downloads (only for uncompressed files)
--   Segmented downloads
--   Support for several file hosting services
--   Support for PSN update manifests (split PKGs)
--   Works with or without Remote Package Installer
--   Command Line Interface (CLI)
--   JDownloader Click'n Load support
--   Auto LAN Cable Connection (Windows Only)
--   Can Install PKGs from NFS source
-    
+## Özellikler
 
-Supported File Hosting Services
-----------
+- PKG dosyalarını önizleme (ikon, başlık, boyut, sürüm vb.)
+- Bağımsız PS4 paket indirmeleri
+- PS5 etaHEN desteği
+- PS4 indirme hızını artırmak için otomatik yerel proxy (vekil sunucu)
+- RAR ve 7z sıkıştırılmış arşiv dosyalarını doğrudan açıp gönderme desteği
+- Duraklatılabilir ve devam ettirilebilir indirmeler (yalnızca sıkıştırılmamış dosyalar için)
+- Parçalı / Segmentli indirmeler (Segmented Downloads)
+- Popüler dosya barındırma (file hosting) ve debrid servisleri desteği
+- PSN güncelleme bildirimleri (bölünmüş PKG / split PKG) desteği
+- Remote Package Installer olmadan da çalışabilme (dahili payload desteği)
+- Komut Satırı Arayüzü (CLI) desteği
+- JDownloader Click'n Load (CNL) entegrasyonu
+- Otomatik LAN Kablo Bağlantısı (Yalnızca Windows)
+- NFS (Ağ Dosya Sistemi) üzerinden PKG yükleyebilme
 
--   Any direct link (without authentication)
--   AllDebrid ([API key required](https://alldebrid.com/apikeys/))
--   RealDebrid ([API key required](https://real-debrid.com/apitoken))
--   DebridLink ([API key required](https://debrid-link.com/webapp/apikey))
--   Google Drive
--   Mediafire
--   PixelDrain
--   1Fichier (must wait 60 minutes after each download)
-    
+---
 
-How to Install
-----------
+## Desteklenen Dosya Barındırma ve Debrid Servisleri
 
-1.  Download a build compatible with your platform (see below).
-2.  On Windows, Linux, and Android, install the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime) first.
-    macOS builds are self-contained and do not require a separate .NET install.
-    
-Downloads:
-----------
+- Herhangi bir doğrudan bağlantı (Direct Link - kimlik doğrulama gerektirmeyen)
+- **AllDebrid** ([API anahtarı gereklidir](https://alldebrid.com/apikeys/))
+- **RealDebrid** ([API anahtarı gereklidir](https://real-debrid.com/apitoken))
+- **DebridLink** ([API anahtarı gereklidir](https://debrid-link.com/webapp/apikey))
+- **Google Drive**
+- **Mediafire**
+- **PixelDrain**
+- **1Fichier** (Her indirme arasında 60 dakika bekleme süresi bulunur)
 
-<details> <summary>Windows</summary>
+---
 
--   [ARM](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-ARM.zip)    
--   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-ARM64.zip)    
--   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-X64.zip)    
--   [x86](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-X86.zip)    
+## Nasıl Kurulur?
 
-</details> <details> <summary>Android</summary>
+1. Platformunuza uygun sürümü indirin (aşağıdaki indirme listesine bakın).
+2. Windows, Linux ve Android üzerinde önce [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime) kurun.  
+   *(macOS sürümleri bağımsızdır; .NET çalışma zamanı içine gömülü gelir ve ek kurulum gerektirmez).*
 
--   [ARM](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-ARM.zip)    
--   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-ARM64.zip)    
--   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-X64.zip)    
--   [x86](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-X86.zip)    
+---
 
-</details> <details> <summary>Linux</summary>
+## İndirmeler
 
--   [ARM](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-ARM.zip)    
--   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-ARM64.zip)    
--   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-X64.zip)    
+<details>
+<summary><b>Windows</b></summary>
 
-</details> <details> <summary>macOS</summary>
+- [ARM](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-ARM.zip)    
+- [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-ARM64.zip)    
+- [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-X64.zip)    
+- [x86](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Windows-X86.zip)    
 
-**CLI builds:**
+</details>
 
--   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64.zip)    
--   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64.zip)    
+<details>
+<summary><b>Android</b></summary>
 
-**App builds (zip):**
+- [ARM](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-ARM.zip)    
+- [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-ARM64.zip)    
+- [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-X64.zip)    
+- [x86](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Android-X86.zip)    
 
--   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64-APP.zip)    
--   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.zip)   
+</details>
 
-**App builds (DMG, drag-to-Applications):**
+<details>
+<summary><b>Linux</b></summary>
 
--   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64-APP.dmg)    
--   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.dmg)
+- [ARM](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-ARM.zip)    
+- [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-ARM64.zip)    
+- [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/Linux-X64.zip)    
 
-macOS builds are self-contained (.NET 8 runtime bundled) and the .app is ad-hoc signed so it launches on Apple Silicon without further steps. If Gatekeeper still blocks the app after extracting the zip, run:
+</details>
 
-```
+<details>
+<summary><b>macOS</b></summary>
+
+**CLI (Komut Satırı) Sürümleri:**
+- [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64.zip)    
+- [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64.zip)    
+
+**Uygulama Sürümleri (.zip):**
+- [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64-APP.zip)    
+- [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.zip)   
+
+**Uygulama Sürümleri (DMG, Uygulamalar klasörüne sürükle-bırak):**
+- [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64-APP.dmg)    
+- [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.dmg)
+
+macOS sürümleri bağımsızdır (.NET 8 çalışma zamanı pakete dahildir) ve .app paketi Apple Silicon üzerinde sorunsuz açılabilmesi için ad-hoc imzalanmıştır. Zip dosyasını çıkardıktan sonra Gatekeeper uygulamayı yine de engellerse terminalde şu komutu çalıştırın:
+
+```bash
 xattr -dr com.apple.quarantine /Applications/DirectPackageInstaller.app
 ```
 
 </details>
 
+---
 
-How to Use
-----------
+## Nasıl Kullanılır?
 
-#### Direct Download Mode
+#### Doğrudan İndirme Modu (Direct Download)
+1. Konsolunuzda **Remote Package Installer** uygulamasını başlatın veya **GoldHEN Payload Server** özelliğini etkinleştirin.
+2. DirectPackageInstaller uygulamasını açın.
+3. "PKG URL" alanına doğrudan PKG bağlantısını yapıştırın.
+4. **"Load"** butonuna tıklayın ve bilgilerin yüklenmesini bekleyin.
+5. **"Install"** butonuna tıklayın ve konsola aktarımın başlamasını bekleyin.
+6. Tamamlandı! Artık uygulamayı veya bilgisayarınızı kapatabilirsiniz.
 
-1.  Launch Remote Package Installer or enable GoldHEN Payload Server.    
-2.  Open DirectPackageInstaller.    
-3.  Paste a direct PKG URL into the "PKG URL" field.    
-4.  Click "Load" and wait.    
-5.  Click "Install" and wait again.    
-6.  Done! You can close the application or shut down your PC.    
+#### Proxy Modu (İnternet Erişimi Olmayan veya Yavaş PS4'ler İçin)
+1. Konsolunuzda Remote Package Installer'ı başlatın veya GoldHEN Payload Server'ı açın.
+2. DirectPackageInstaller'ı açın.
+3. `Options -> Proxy Downloads` seçeneğini aktif edin.
+4. Doğrudan PKG bağlantısını yapıştırın.
+5. Önce **"Load"**, ardından **"Install"** butonuna basın.
+6. Yükleme tamamlanana kadar bekleyin (veriler bilgisayarınız üzerinden konsola iletilir).
 
-#### Proxied Download Mode (for PS4s without internet access)
+#### Parçalı İndirme Modu (Segmented Download - En Hızlı Yöntem)
+1. Bilgisayarınızda yeterli boş disk alanı olduğundan emin olun.
+2. Konsolda Remote Package Installer'ı başlatın veya GoldHEN Payload Server'ı açın.
+3. DirectPackageInstaller'ı açın.
+4. `Options -> Segmented Downloads` seçeneğini aktif edin.
+5. PKG bağlantısını yapıştırın.
+6. **"Load"** ve ardından **"Install"** butonuna tıklayın.
+7. PKG, çoklu iş parçacığıyla bilgisayarınıza indirilirken aynı anda konsola aktarılır.
 
-1.  Launch Remote Package Installer or enable GoldHEN Payload Server.    
-2.  Open DirectPackageInstaller.    
-3.  Go to `Options -> Proxy Downloads` and enable it.    
-4.  Paste a direct PKG URL.    
-5.  Click "Load", then "Install".    
-6.  Wait for the installation to finish.
-    
+> **Not:** Parçalı indirme modunda PS4 indirme ilerlemesini tam olarak hesaplayamaz. Gerçek ağ kullanımını bilgisayarınızdaki Görev Yöneticisi'nden takip edebilirsiniz.
 
-#### Segmented Download Mode (fastest)
+#### Sıkıştırılmış Dosya Modu (RAR / 7z - Daima Proxy Kullanır)
+1. Bilgisayarınızda yeterli boş disk alanı olduğundan emin olun.
+2. Konsolda Remote Package Installer'ı veya GoldHEN Payload Server'ı açın.
+3. Sıkıştırılmış arşiv dosyasının doğrudan bağlantısını yapıştırın.
+4. **"Load"** butonuna basın ve arşiv taranırken bekleyin.
+5. *(İsteğe bağlı)* Dosya listesinden yüklemek istediğiniz PKG'yi seçin.
+6. **"Install"** butonuna tıklayın. İndirme, çıkarma ve konsola aktarım anlık (streaming) olarak gerçekleşecektir.
 
-1.  Make sure you have enough free disk space.
-2.  Launch Remote Package Installer or enable GoldHEN Payload Server.
-3.  Open DirectPackageInstaller.
-4.  Go to `Options -> Segmented Downloads` and enable it.
-5.  Paste a direct PKG URL.
-6.  Click "Load", then "Install".
-7.  The PKG will be downloaded and preloaded before installation.
+---
 
-> Note: In segmented mode, the PS4 cannot track download progress accurately.
+## macOS CLI Kullanımı
 
-#### Compressed File Mode (always proxied)
-1.  Make sure you have enough free disk space.    
-2.  Launch Remote Package Installer or enable GoldHEN Payload Server.    
-3.  Paste the direct URL to your compressed file.    
-4.  Click "Load" and wait.    
-5.  [Optional] Select the desired PKG from the file list.    
-6.  Click "Install" and wait.
-
-macOS CLI Usage
-----------
-
-Use the terminal to run the app:
-```
+Terminal üzerinden uygulamayı çalıştırmak için:
+```bash
 ./DirectPackageInstaller.Desktop
 ```
-In some cases, you may need to run:
-```
+Gerekli durumlarda şu komutla da çalıştırabilirsiniz:
+```bash
 dotnet DirectPackageInstaller.Desktop.dll
 ```
 
-NFS PKG Source
-----------
+---
 
-To use an NFS server as a source for DPI, you just need to provide a URL in a format supported by DPI.
-There are two supported NFS URL formats:
+## NFS PKG Kaynağı
 
-- `nfs://YOUR_NFS_IP_OR_HOSTNAME/ExportedPath/FilePath/FileName.pkg`
+DPI için kaynak olarak bir NFS sunucusu kullanmak için desteklenen biçimde bir URL girmeniz yeterlidir.  
+Desteklenen iki farklı NFS URL formatı mevcuttur:
 
-- `nfs://YOUR_NFS_IP_OR_HOSTNAME/FilePath/FileName.pkg`
+- `nfs://NFS_IP_VEYA_SUNUCU_ADI/DisaAktarilanYol/DosyaYolu/DosyaAdi.pkg`
+- `nfs://NFS_IP_VEYA_SUNUCU_ADI/DosyaYolu/DosyaAdi.pkg`
 
-In the first format, the path starts with the exact exported directory (as configured in the NFS server's /etc/exports).
-DPI will mount that specific export and look for the file within it.
+İlk formatta yol, NFS sunucusunun `/etc/exports` dosyasında yapılandırılan dışa aktarılan dizin ile başlar. DPI doğrudan bu paylaşıma bağlanır ve dosyayı arar.
 
-In the second format, no specific export path is provided. In this case, DPI will attempt to search across all available exports on the NFS server to locate the requested file.
-Note that this may slow down the initial access if your server has many exports.
+İkinci formatta belirli bir dışa aktarma yolu belirtilmez; bu durumda DPI istenen dosyayı bulmak için NFS sunucusundaki tüm paylaşımları tarar. Sunucunuzda çok fazla paylaşım varsa bu işlem ilk erişimi yavaşlatabilir.
 
-PS: The DPI is incompatible with the winnfsd due this bug [#88](https://github.com/winnfsd/winnfsd/issues/88), for windows, you can use [haneWIN NFS Server](https://www.hanewin.net/nfs-e.htm) instead.
+> **Dipnot:** DPI, [#88 numaralı hata](https://github.com/winnfsd/winnfsd/issues/88) nedeniyle winnfsd ile uyumsuzdur. Windows için alternatif olarak [haneWIN NFS Server](https://www.hanewin.net/nfs-e.htm) kullanabilirsiniz.
 
+---
 
-How It Works
-----------
-DirectPackageInstaller is a simple tool that uses the Remote Package Installer's API to add PKG downloads directly to your PS4 or PS5. It helps you preview and send packages easily.
+## Nasıl Çalışır?
 
-Additionally, the tool features an automatic proxy server to accelerate downloads. Since the PS4 has much better speeds over LAN than WAN, proxying through your PC can significantly improve performance.
+DirectPackageInstaller, PKG indirmelerini doğrudan PS4 veya PS5 konsolunuza eklemek için Remote Package Installer API'sini ve etaHEN protokolünü kullanan hafif ve pratik bir araçtır.
 
-It also works without the Remote Package Installer if you enable the binloader — the tool will automatically decide which method to use.
+Ayrıca araç, indirmeleri hızlandırmak için otomatik bir dahili yerel vekil sunucu (proxy) barındırır. PS4 konsolları internet (WAN) hızına kıyasla yerel ağda (LAN) çok daha yüksek hızlara ulaştığından, indirmeleri bilgisayarınız üzerinden tünellemek aktarım performansını katbekat artırır.
 
-When using compressed files (RAR/7z), everything happens in parallel: download, extraction, and upload to your console. This saves time and disk space compared to traditional methods.
+Konsolunuzda Remote Package Installer kurulu olmasa bile, GoldHEN binloader açıksa araç hangi yöntemi kullanacağını otomatik olarak algılar ve aktarımı sağlar.
 
-Segmented mode downloads PKGs in parallel threads to your PC, while sending them to the console. It's the fastest option, though it won't show progress on the PS4 screen.
+Sıkıştırılmış arşivlerde (RAR/7z) her işlem eş zamanlı ve paralel olarak yürütülür: indirme, arşivden çıkarma ve konsola yükleme aynı anda gerçekleşir. Bu sayede hem zaman kazanılır hem de diskte devasa geçici kopyalar oluşturulmaz.
 
+---
 
-Command Line Interface (CLI)
-----------
+## Komut Satırı Arayüzü (CLI)
 
-An experimental CLI is available.
+Deneysel bir CLI desteği mevcuttur.
 
-Note: RAR/7z and segmented downloads are not supported in CLI mode (yet).  
-To view available options:
+> **Not:** RAR/7z açma ve parçalı indirmeler henüz CLI modunda desteklenmemektedir.
 
--   On Windows: `DirectPackageInstaller.Desktop.exe -help`    
--   On other systems: `DirectPackageInstaller.Desktop -help`
-    
+Kullanılabilir parametreleri görmek için:
+- **Windows:** `DirectPackageInstaller.Desktop.exe -help`
+- **Diğer sistemler:** `./DirectPackageInstaller.Desktop -help`
 
+---
 
+## Gereksinimler
 
-Dependencies
-----------
-Windows, Linux, and Android builds require the [.NET 8.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime).
-macOS builds are self-contained and ship with the runtime bundled.
+- Windows, Linux ve Android sürümleri [.NET 8.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime) gerektirir.
+- macOS sürümleri bağımsızdır ve çalışma zamanı içine entegre olarak gelir.
 
+---
 
-How to Build
-----------
+## Projeyi Derleme (Build)
 
-1.  Install the .NET 8.x SDK.    
-2.  Run the `Build.cmd` script (works on both Windows and Unix-like systems).    
-3.  A `Release` directory with the compiled binaries will be created.    
+1. [.NET 8.x SDK](https://dotnet.microsoft.com/download) yükleyin.
+2. `Build.cmd` betiğini çalıştırın (hem Windows hem de Unix benzeri sistemlerde çalışır).
+3. Derlenen ikili dosyalar `Release` dizini altında oluşturulacaktır.
 
-For custom payloads, run `make` in the payload directory and replace the generated `payload.bin` inside `DirectPackageInstaller/DirectPackageInstaller/payload`.
+Özel payload geliştirmek için `Payload` dizininde `make` çalıştırın ve oluşturulan `payload.bin` dosyasını `DirectPackageInstaller/DirectPackageInstaller/payload` içine kopyalayın.
 
-Android builds:
-----------
--   Targets API level 26    
--   Install Android SDK and NDK    
--   Accept SDK licenses    
--   Edit `Build.cmd` to set SDK/NDK paths    
--   Run `Build.cmd` as admin (first time only)
+#### Android Derlemeleri:
+- Hedef API seviyesi: 26
+- Android SDK ve NDK kurulumu gereklidir.
+- SDK lisanslarını onaylayın.
+- `Build.cmd` dosyasını düzenleyerek SDK/NDK yollarını tanımlayın.
+- İlk seferde `Build.cmd` dosyasını yönetici olarak çalıştırın.
 
-Alternatively, fork the project and use GitHub Actions for builds.
+*(Alternatif olarak projeyi fork'layıp GitHub Actions üzerinden derleyebilirsiniz.)*
 
-Q&A
-----------
+---
 
-**My download is taking too long to start**  
-You're probably downloading a multipart compressed file. The more volumes, the longer it takes to scan and validate. This isn’t a bug — just how compressed file access works. Please be patient.
+## Sıkça Sorulan Sorular (SSS)
 
-**Download speed is slow, even in segmented mode**  
-Segmented mode doesn't report accurate progress to the PS4. Use your PC's Task Manager to monitor real network usage.
+**İndirmem neden geç başlıyor?**  
+Muhtemelen çok parçalı sıkıştırılmış bir arşiv indiriyorsunuz. Parça sayısı ne kadar fazla olursa, arşivin taranması ve doğrulanması o kadar uzun sürer. Bu bir hata değil, arşiv yapısının doğası gereğidir. Lütfen bekleyin.
 
-**Segmented mode and only 2 Mbps?!**  
-Some hosting sites (e.g., Zippyshare) are just slow. Try testing with Google Drive for better performance.
+**Parçalı modda bile indirme hızı yavaş görünüyor?**  
+Parçalı mod, PS4 ekranına anlık doğru ilerleme raporlayamaz. Gerçek ağ kullanımını bilgisayarınızın Görev Yöneticisi'nden izleyin.
 
-**Recommended file hostings?**
+**Segmentli moddayım ama hız sadece 2 Mbps?**  
+Bazı barındırma siteleri (ör. Zippyshare vb.) bant genişliğini sınırlar. Gerçek performansı test etmek için Google Drive bağlantılarını deneyin.
 
--   AllDebrid / RealDebrid    
--   Google Drive    
--   Mediafire
--   Everything else
--   1Fichier (slowest)
-    
+**Önerilen dosya barındırma servisleri nelerdir?**
+1. AllDebrid / RealDebrid / DebridLink
+2. Google Drive
+3. Mediafire
+4. PixelDrain
+5. Diğerleri
+6. 1Fichier (en yavaşı - bekleme süreli)
 
-**I got an error during installation**  
-Open an issue! Seriously, don’t worry — mistakes happen. If there's a crash, check the `DPI-Crash.log` for details.
+**Yükleme sırasında hata aldım, ne yapmalıyım?**  
+GitHub üzerinde bir Issue (Hata Kaydı) açmaktan çekinmeyin! Uygulama çökerse ayrıntılar için `DPI-Crash.log` dosyasını kontrol edin.
 
-Disclaimer
-----------
+---
 
-This tool is for legitimate purposes only. It’s intended to help users install their personal backups. Piracy is not supported.  
-You are responsible for how you use this software.
+## Yasal Uyarı
 
-Warnings
-----------
+Bu araç yalnızca yasal ve meşru amaçlar için geliştirilmiştir. Kullanıcıların kendi kişisel yedeklerini kurmalarına yardımcı olmak amaçlanmıştır. Korsan içerik veya telif hakkı ihlalleri desteklenmez. Yazılımın kullanımından doğan sorumluluk tamamen kullanıcıya aittir.
 
--   Avoid multiple parallel decompressions — process one file at a time.
--   Compressed file downloads create a temporary PKG cache, requiring free disk space equal to the final PKG size.
+---
 
-Credits
-----------
+## Önemli Uyarılar
 
--   **LibOrbisPkg** by _maxton_
--   **HttpServerLite** by _jchristn_
--   Payload template by _sleirsgoevy_
--   PS4 OS internals help by _LM_
--   PS4 export definitions by _OpenOrbis SDK_
--   **DirectPackageInstaller** by _marcussacana_
+- Aynı anda birden fazla sıkıştırılmış arşivi açmaktan kaçının; dosyaları sırayla işleyin.
+- Sıkıştırılmış dosya indirmeleri geçici bir PKG önbelleği oluşturur; bu nedenle diskinizde nihai PKG boyutu kadar boş alan bulunmalıdır.
+
+---
+
+## Teşekkürler ve Katkıda Bulunanlar
+
+- **LibOrbisPkg** - _maxton_
+- **HttpServerLite** - _jchristn_
+- Payload şablonu - _sleirsgoevy_
+- PS4 çekirdek ve sistem desteği - _LM_
+- PS4 dışa aktarma tanımları - _OpenOrbis SDK_
+- **DirectPackageInstaller** - _marcussacana_
