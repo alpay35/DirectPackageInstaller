@@ -134,10 +134,28 @@ namespace DirectPackageInstaller.Tasks
         public static event Action<double, string, string>? OnProgressUpdated;
         public static event Action<QueueItem, string>? OnStorageErrorOccurred;
 
-        public static void Add(string source, string? title = null, string? size = null, byte[]? iconData = null, long sizeBytes = 0)
+        public static QueueItem? Add(string source, string? title = null, string? size = null, byte[]? iconData = null, long sizeBytes = 0, bool insertAtTop = false)
         {
             if (string.IsNullOrWhiteSpace(source))
-                return;
+                return null;
+
+            // Zaten kuyrukta varsa ve insertAtTop istendiyse en başa taşı
+            var existing = Items.FirstOrDefault(x => string.Equals(x.Source, source, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+            {
+                if (insertAtTop)
+                {
+                    Items.Remove(existing);
+                    if (existing.Status == QueueItemStatus.Failed || existing.Status == QueueItemStatus.Cancelled)
+                    {
+                        existing.Status = QueueItemStatus.Pending;
+                        existing.ErrorMessage = null;
+                        existing.Progress = 0;
+                    }
+                    Items.Insert(0, existing);
+                }
+                return existing;
+            }
 
             string name = Path.GetFileName(source.Split('?').First());
             if (string.IsNullOrEmpty(name))
@@ -159,7 +177,12 @@ namespace DirectPackageInstaller.Tasks
                 Status = QueueItemStatus.Pending
             };
 
-            Items.Add(item);
+            if (insertAtTop)
+                Items.Insert(0, item);
+            else
+                Items.Add(item);
+
+            return item;
         }
 
         public static void Remove(QueueItem item)
@@ -187,6 +210,36 @@ namespace DirectPackageInstaller.Tasks
                 CurrentItem.Progress = percent;
             }
             OnProgressUpdated?.Invoke(percent, speed, transferred);
+        }
+
+        public static async Task WaitForTransferCompletionAsync(CancellationToken ct)
+        {
+            if (Installer.Server == null)
+                return;
+
+            // 1. Konsolun PC sunucusuna bağlanmasını bekle (en fazla 15 saniye)
+            int waitConnectCount = 0;
+            while (!ct.IsCancellationRequested && Installer.Server.Connections == 0 && waitConnectCount < 30)
+            {
+                await Task.Delay(500, ct);
+                waitConnectCount++;
+
+                if (Installer.Server.LastTransferProgress?.Completed == true)
+                    break;
+            }
+
+            // 2. Konsol indirmeyi sürdürdüğü sürece (bağlantı açıkken) bekle
+            while (!ct.IsCancellationRequested && 
+                   (Installer.Server.Connections > 0 || (Installer.Server.Decompress?.Tasks.Any(x => x.Value.Running) ?? false)))
+            {
+                await Task.Delay(1000, ct);
+            }
+
+            // 3. Paket geçişleri arasında konsol servisinin rahatlaması için kısa bekleme
+            if (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(2000, ct);
+            }
         }
 
         public static async Task RunQueueAsync(Settings config, Func<string, Task<bool>> installFunc)
@@ -229,13 +282,19 @@ namespace DirectPackageInstaller.Tasks
                         bool success = await installFunc(nextItem.Source);
                         if (success)
                         {
-                            nextItem.Status = QueueItemStatus.Completed;
-                            nextItem.Progress = 100.0;
+                            // 2. Aktarımın tamamlanmasını bekle (PS4'ün HTTP üzerinden indirmeyi bitirmesi)
+                            await WaitForTransferCompletionAsync(ct);
+
+                            if (!ct.IsCancellationRequested)
+                            {
+                                nextItem.Status = QueueItemStatus.Completed;
+                                nextItem.Progress = 100.0;
+                            }
                         }
                         else
                         {
                             nextItem.Status = QueueItemStatus.Failed;
-                            string err = Installer.LastErrorMessage ?? "Kurulum başarısız oldu.";
+                            string err = Installer.LastErrorMessage ?? "Kurulum başlatılamadı.";
                             nextItem.ErrorMessage = err;
 
                             if (ConsoleStorageService.IsOutOfSpaceError(err, out string friendlyMsg))
@@ -245,6 +304,11 @@ namespace DirectPackageInstaller.Tasks
                                 break; // Konsolda yer kalmadığı için kuyruğu durdur
                             }
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        nextItem.Status = QueueItemStatus.Cancelled;
+                        break;
                     }
                     catch (Exception ex)
                     {

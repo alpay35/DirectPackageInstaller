@@ -100,6 +100,43 @@ namespace DirectPackageInstaller.Tests
             InstallQueueManager.Clear();
             Assert.Empty(InstallQueueManager.Items);
         }
+
+        [Fact]
+        public void Queue_Inserts_At_Top_When_Requested()
+        {
+            InstallQueueManager.Clear();
+
+            InstallQueueManager.Add("https://example.com/game1.pkg", "Game 1");
+            InstallQueueManager.Add("https://example.com/game2.pkg", "Game 2");
+
+            // Direct installer adds Game 3 at top priority
+            InstallQueueManager.Add("https://example.com/game3.pkg", "Game 3", insertAtTop: true);
+
+            Assert.Equal(3, InstallQueueManager.Items.Count);
+            Assert.Equal("Game 3", InstallQueueManager.Items[0].Title);
+            Assert.Equal("Game 1", InstallQueueManager.Items[1].Title);
+            Assert.Equal("Game 2", InstallQueueManager.Items[2].Title);
+
+            InstallQueueManager.Clear();
+        }
+
+        [Fact]
+        public void Queue_Moves_Existing_Item_To_Top_When_Requested()
+        {
+            InstallQueueManager.Clear();
+
+            InstallQueueManager.Add("https://example.com/game1.pkg", "Game 1");
+            InstallQueueManager.Add("https://example.com/game2.pkg", "Game 2");
+
+            // Move Game 2 to the top of the queue
+            InstallQueueManager.Add("https://example.com/game2.pkg", "Game 2", insertAtTop: true);
+
+            Assert.Equal(2, InstallQueueManager.Items.Count);
+            Assert.Equal("Game 2", InstallQueueManager.Items[0].Title);
+            Assert.Equal("Game 1", InstallQueueManager.Items[1].Title);
+
+            InstallQueueManager.Clear();
+        }
     }
 
     public class DownloaderMemoryTests

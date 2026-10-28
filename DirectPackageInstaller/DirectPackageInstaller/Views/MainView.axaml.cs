@@ -532,11 +532,33 @@ namespace DirectPackageInstaller.Views
             if (string.IsNullOrWhiteSpace(SourcePackage) && !string.IsNullOrWhiteSpace(LastForcedSource))
                 SourcePackage = LastForcedSource;
 
-            //Already Loaded, then Let's Install it!
+            //Already Loaded, then Let's Install it (Prioritize at top of queue)!
             if (InputType != Source.NONE) {
-                var Success = await Install(SourcePackage, false);
+                var title = Installer.CurrentPKG.FriendlyName;
+                if (string.IsNullOrWhiteSpace(title))
+                    title = Path.GetFileName(SourcePackage);
+                long sizeBytes = PKGStream?.Length ?? 0;
 
-                if (InputType.HasFlag(Source.File) && Success)
+                // Doğrudan yükleyici işini kuyruğun en başına (1. sıraya) ekle
+                var queueItem = InstallQueueManager.Add(SourcePackage, title, sizeBytes > 0 ? sizeBytes.ToFileSize() : null, null, sizeBytes, insertAtTop: true);
+
+                if (Model != null)
+                {
+                    Model.ActiveTransferTitle = queueItem?.DisplayTitle ?? Path.GetFileName(SourcePackage);
+                    Model.ActiveTransferStatus = "Konsola aktarılıyor...";
+                    Model.IsActiveTransferRunning = true;
+                }
+
+                if (!InstallQueueManager.IsRunning)
+                {
+                    StartQueueProcessing();
+                }
+                else
+                {
+                    await SetStatus($"Doğrudan yükleyici işi kuyruğun en başına eklendi: {queueItem?.DisplayTitle}");
+                }
+
+                if (InputType.HasFlag(Source.File))
                     App.Callback(() => Model.CurrentURL = string.Empty);
                 
                 return;
@@ -985,10 +1007,27 @@ namespace DirectPackageInstaller.Views
 
         private async Task<bool> Install(string URL, bool Silent)
         {
-            if (string.IsNullOrWhiteSpace(App.Config.PSIP) || string.IsNullOrWhiteSpace(App.Config.PCIP))
+            if (string.IsNullOrWhiteSpace(App.Config.PSIP) || string.IsNullOrWhiteSpace(App.Config.PCIP) || App.Config.PCIP == "0.0.0.0")
             {
-                await MessageBox.ShowAsync(Parent, "Failed to detect your playstation IP.\nPlease, Type your PS/PC IP in the options menu", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return false;
+                if (string.IsNullOrWhiteSpace(App.Config.PSIP) && Model != null && !string.IsNullOrWhiteSpace(Model.PS4IP))
+                    App.Config.PSIP = Model.PS4IP;
+
+                if (string.IsNullOrWhiteSpace(App.Config.PCIP) || App.Config.PCIP == "0.0.0.0")
+                {
+                    App.Config.PCIP = (!string.IsNullOrWhiteSpace(App.Config.PSIP) ? IPHelper.FindLocalIP(App.Config.PSIP) : null)
+                        ?? IPHelper.EnumLocalIPs().FirstOrDefault()
+                        ?? "0.0.0.0";
+                    if (Model != null) Model.PCIP = App.Config.PCIP;
+                }
+
+                if (string.IsNullOrWhiteSpace(App.Config.PSIP) || string.IsNullOrWhiteSpace(App.Config.PCIP) || App.Config.PCIP == "0.0.0.0")
+                {
+                    string ipErr = "Konsol veya PC IP adresi tanımlanmamış. Lütfen 'Konsol Seç' menüsünden konsolunuzu belirleyin.";
+                    Installer.LastErrorMessage = ipErr;
+                    if (!Silent)
+                        await MessageBox.ShowAsync(Parent, ipErr, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
             }
 
             var OriStatus = Status.Text;
@@ -998,24 +1037,25 @@ namespace DirectPackageInstaller.Views
             tbURL.IsEnabled = false;
             try
             {
-                if (!await IPHelper.IsRPIOnline(App.Config.PSIP)) {
-                    if (!await IPHelper.IsGoldHENOnline(App.Config.PSIP) && !Installer.Payload.ClientRunning)
-                    {
-                        if (!await IPHelper.IsEtaHenOnline(App.Config.PSIP))
-                        {
-                            string notFoundMsg = $"RPI, GoldHEN nor etaHEN Found at {App.Config.PSIP}, Verify if is running.\nYou may need re-enable the payload server.";
-                            Installer.LastErrorMessage = notFoundMsg;
-                            if (!Silent)
-                                await MessageBox.ShowAsync(notFoundMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            return false;
-                        }
-                    }
+                bool isTargetOnline = await IPHelper.IsRPIOnline(App.Config.PSIP)
+                    || await IPHelper.IsGoldHENOnline(App.Config.PSIP)
+                    || await IPHelper.IsEtaHenOnline(App.Config.PSIP)
+                    || Installer.Payload.ClientRunning;
+
+                if (!isTargetOnline)
+                {
+                    string notFoundMsg = $"RPI, GoldHEN veya etaHEN ({App.Config.PSIP}) üzerinde bulunamadı. Servisin açık olduğunu doğrulayın.";
+                    Installer.LastErrorMessage = notFoundMsg;
+                    if (!Silent)
+                        await MessageBox.ShowAsync(notFoundMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
                 }
 
                 return await Installer.PushPackage(App.Config, InputType, PKGStream!, URL, CurrentDecompressor, CurrentDecompressorVolumes, SetStatus, () => Status.Text, Silent);
             }
-            catch
+            catch (Exception ex)
             {
+                Installer.LastErrorMessage = ex.Message;
                 return false;
             }
             finally
@@ -1344,20 +1384,42 @@ namespace DirectPackageInstaller.Views
 
         private void ServerOnTransferProgressChanged(TransferProgressInfo Info)
         {
-            if (!App.Config.ShowTransferProgress)
-                return;
-
             var Now = DateTime.Now;
-            if (!Info.Completed && (Now - LastTransferProgressUpdate).TotalMilliseconds < 500)
+            if (!Info.Completed && (Now - LastTransferProgressUpdate).TotalMilliseconds < 250)
                 return;
 
             LastTransferProgressUpdate = Now;
             var ProgressStatus = FormatTransferProgress(Info);
 
+            var percent = Math.Round(Info.Percent * 100, 1);
+            var speed = TransferProgressInfo.FormatBytes(Info.BytesPerSecond) + "/s";
+            var sent = TransferProgressInfo.FormatBytes(Info.BytesSent);
+            var total = TransferProgressInfo.FormatBytes(Info.TotalBytes);
+            var transferred = $"{sent} / {total}";
+
+            // Kuyruk ve gösterge panelini güncelle
+            InstallQueueManager.ReportProgress(percent, speed, transferred);
+
             App.Callback(() =>
             {
                 if (App.Config.ShowTransferProgress)
                     Status.Text = ProgressStatus;
+
+                if (Model != null)
+                {
+                    Model.ActiveTransferPercent = percent;
+                    Model.ActiveTransferSpeed = speed;
+                    Model.ActiveTransferProgressText = transferred;
+                    if (!Info.Completed)
+                    {
+                        Model.ActiveTransferStatus = $"Konsola aktarılıyor... (%{percent})";
+                        Model.IsActiveTransferRunning = true;
+                    }
+                    else
+                    {
+                        Model.ActiveTransferStatus = "Paket başarıyla aktarıldı.";
+                    }
+                }
             });
         }
 
@@ -1636,13 +1698,13 @@ namespace DirectPackageInstaller.Views
         {
             if (InstallQueueManager.Items.Count == 0)
             {
-                await MessageBox.ShowAsync("The queue is empty. Add PKG files/URLs using the '+' button.", LocalizationManager.Get("Queue"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                await MessageBox.ShowAsync("Kuyruk boş. Kütüphaneden veya '+' butonundan PKG ekleyin.", LocalizationManager.Get("Queue"), MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             if (InstallQueueManager.IsRunning)
             {
-                var stopChoice = await MessageBox.ShowAsync("Queue is running. Stop queue?", LocalizationManager.Get("Queue"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                var stopChoice = await MessageBox.ShowAsync("Kuyruk çalışıyor. Durdurmak istiyor musunuz?", LocalizationManager.Get("Queue"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (stopChoice == DialogResult.Yes)
                 {
                     InstallQueueManager.Stop();
@@ -1650,26 +1712,7 @@ namespace DirectPackageInstaller.Views
                 return;
             }
 
-            string queueSummary = string.Join("\n", InstallQueueManager.Items.Select((x, idx) => $"{idx + 1}. [{x.Status}] {x.FileName}"));
-            var reply = await MessageBox.ShowAsync($"Queue Items ({InstallQueueManager.Items.Count}):\n\n{queueSummary}\n\nStart sequential installation?", LocalizationManager.Get("Queue"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-            if (reply == DialogResult.Yes)
-            {
-                _ = Task.Run(async () =>
-                {
-                    await InstallQueueManager.RunQueueAsync(App.Config, async (src) =>
-                    {
-                        bool ok = false;
-                        await Dispatcher.UIThread.InvokeAsync(async () =>
-                        {
-                            if (Model != null)
-                                Model.CurrentURL = src;
-                            ok = await PreparePackageAndInstall(src, true);
-                        });
-                        return ok;
-                    });
-                });
-            }
+            StartQueueProcessing();
         }
 
         private void SetLanguage(string lang)
@@ -1803,7 +1846,23 @@ namespace DirectPackageInstaller.Views
                 Model.SelectedTabIndex = 0;
             }
 
-            await PreparePackageAndInstall(selected.FilePath, false);
+            var queueItem = InstallQueueManager.Add(selected.FilePath, selected.Title, selected.FormattedSize, selected.IconData, selected.SizeBytes, insertAtTop: true);
+            if (Model != null)
+            {
+                Model.ActiveTransferTitle = selected.Title;
+                Model.CurrentURL = selected.FilePath;
+                Model.ActiveTransferStatus = "Konsola aktarılıyor...";
+                Model.IsActiveTransferRunning = true;
+            }
+
+            if (!InstallQueueManager.IsRunning)
+            {
+                StartQueueProcessing();
+            }
+            else
+            {
+                await SetStatus($"İş kuyruğun en başına eklendi: {selected.DisplayTitle}");
+            }
         }
 
         private async void BtnQueueAll_Click(object? sender, RoutedEventArgs e)
@@ -1846,13 +1905,25 @@ namespace DirectPackageInstaller.Views
                     }
                 }
 
+                // Kuyruğun en başına (1. sıraya) ekle
+                var queueItem = InstallQueueManager.Add(item.FilePath, item.Title, item.FormattedSize, item.IconData, item.SizeBytes, insertAtTop: true);
+
                 if (Model != null)
                 {
                     Model.ActiveTransferTitle = item.Title;
                     Model.CurrentURL = item.FilePath;
-                    Model.SelectedTabIndex = 0;
+                    Model.ActiveTransferStatus = "Konsola aktarılıyor...";
+                    Model.IsActiveTransferRunning = true;
                 }
-                await PreparePackageAndInstall(item.FilePath, false);
+
+                if (!InstallQueueManager.IsRunning)
+                {
+                    StartQueueProcessing();
+                }
+                else
+                {
+                    await SetStatus($"İş kuyruğun en başına eklendi: {item.DisplayTitle}");
+                }
             }
         }
 
@@ -1947,12 +2018,46 @@ namespace DirectPackageInstaller.Views
             if (InstallQueueManager.IsRunning)
                 return;
 
+            // Bekleyen iş yoksa ama başarısız işler varsa, kullanıcı "Başlat"a bastığında bunları tekrar dene
+            if (!InstallQueueManager.Items.Any(x => x.Status == QueueItemStatus.Pending))
+            {
+                foreach (var failed in InstallQueueManager.Items.Where(x => x.Status == QueueItemStatus.Failed || x.Status == QueueItemStatus.Cancelled))
+                {
+                    failed.Status = QueueItemStatus.Pending;
+                    failed.ErrorMessage = null;
+                    failed.Progress = 0;
+                }
+            }
+
+            // IP yapılandırmasını kontrol et ve otomatik tamamla
+            if (string.IsNullOrWhiteSpace(App.Config.PSIP) || App.Config.PSIP == "0.0.0.0")
+            {
+                if (Model != null && !string.IsNullOrWhiteSpace(Model.PS4IP))
+                    App.Config.PSIP = Model.PS4IP;
+            }
+
+            if (string.IsNullOrWhiteSpace(App.Config.PCIP) || App.Config.PCIP == "0.0.0.0")
+            {
+                var resolvedPCIP = (!string.IsNullOrWhiteSpace(App.Config.PSIP) ? IPHelper.FindLocalIP(App.Config.PSIP) : null)
+                    ?? IPHelper.EnumLocalIPs().FirstOrDefault()
+                    ?? "0.0.0.0";
+                if (resolvedPCIP != "0.0.0.0")
+                {
+                    App.Config.PCIP = resolvedPCIP;
+                    if (Model != null) Model.PCIP = resolvedPCIP;
+                }
+            }
+
+            if (Installer.Server == null && !string.IsNullOrWhiteSpace(App.Config.PCIP))
+            {
+                await Installer.StartServer(App.Config.PCIP);
+            }
+
             _ = Task.Run(async () =>
             {
                 await InstallQueueManager.RunQueueAsync(App.Config, async (src) =>
                 {
-                    bool ok = false;
-                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    var task = await Dispatcher.UIThread.InvokeAsync<Task<bool>>(async () =>
                     {
                         var queueItem = InstallQueueManager.CurrentItem;
                         if (Model != null)
@@ -1962,8 +2067,9 @@ namespace DirectPackageInstaller.Views
                             Model.ActiveTransferStatus = "Konsola aktarılıyor...";
                             Model.IsActiveTransferRunning = true;
                         }
-                        ok = await PreparePackageAndInstall(src, true);
+                        return await PreparePackageAndInstall(src, true);
                     });
+                    bool ok = await task;
                     return ok;
                 });
 
@@ -1971,7 +2077,8 @@ namespace DirectPackageInstaller.Views
                 {
                     if (Model != null && Model.ActiveTransferStatus != "DURDURULDU: Yetersiz Depolama Alanı!")
                     {
-                        Model.ActiveTransferStatus = "Kuyruk tamamlandı!";
+                        bool hasFailed = InstallQueueManager.Items.Any(x => x.Status == QueueItemStatus.Failed);
+                        Model.ActiveTransferStatus = hasFailed ? "Kuyruk tamamlandı (Bazı aktarımlar başarısız)." : "Kuyruk tamamlandı!";
                         Model.IsActiveTransferRunning = false;
                     }
                 });

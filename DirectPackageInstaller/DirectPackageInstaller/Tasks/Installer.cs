@@ -249,12 +249,14 @@ namespace DirectPackageInstaller.Tasks
                         if (ConsoleStorageService.IsOutOfSpaceError(Result, out string spaceMsg))
                         {
                             LastErrorMessage = spaceMsg;
-                            await MessageBox.ShowAsync(spaceMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            if (!Silent)
+                                await MessageBox.ShowAsync(spaceMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         }
                         else
                         {
                             LastErrorMessage = Result;
-                            await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            if (!Silent)
+                                await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
                         return false;
                     }
@@ -277,8 +279,10 @@ namespace DirectPackageInstaller.Tasks
                     catch { }
                 }
 
+                LastErrorMessage = Result ?? ex.Message;
                 await File.WriteAllTextAsync(Path.Combine(App.WorkingDirectory, "DPI-ERROR.log"), ex.ToString());
-                await MessageBox.ShowAsync("Failed:\n" + (Result == null ? ex.ToString() : Result), "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!Silent)
+                    await MessageBox.ShowAsync("Failed:\n" + (Result == null ? ex.ToString() : Result), "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
         }
@@ -327,12 +331,14 @@ namespace DirectPackageInstaller.Tasks
                     if (ConsoleStorageService.IsOutOfSpaceError(Result, out string spaceMsg))
                     {
                         LastErrorMessage = spaceMsg;
-                        await MessageBox.ShowAsync(spaceMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        if (!Silent)
+                            await MessageBox.ShowAsync(spaceMsg, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                     else
                     {
                         LastErrorMessage = Result;
-                        await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        if (!Silent)
+                            await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                     return false;
                 }
@@ -354,8 +360,10 @@ namespace DirectPackageInstaller.Tasks
                     catch { }
                 }
 
+                LastErrorMessage = Result ?? ex.Message;
                 await File.WriteAllTextAsync(Path.Combine(App.WorkingDirectory, "DPI-ERROR.log"), ex.ToString());
-                await MessageBox.ShowAsync("Failed:\n" + (Result == null ? ex.ToString() : Result), "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!Silent)
+                    await MessageBox.ShowAsync("Failed:\n" + (Result == null ? ex.ToString() : Result), "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
         }
